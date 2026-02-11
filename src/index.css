@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-obsidian: #050505;
+  --color-sonar-cyan: #00F5FF;
+  --color-signal-violet: #9D00FF;
+}
+
+body {
+  background-color: var(--color-obsidian);
+  color: white;
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
