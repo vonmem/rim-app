@@ -145,7 +145,7 @@ function App() {
   // 4. INVITE FUNCTION
   const handleInvite = () => {
     if (!user) return
-    const inviteLink = `https://t.me/RIM_Protocol_Bot/start?startapp=ref_${user.id}`
+    const inviteLink = `https://t.me/The_RIM_Bot/start?startapp=ref_${user.id}`
     const text = `Join the RIM Intelligence Swarm. Activate your node.`
     
     // Open Telegram Share
