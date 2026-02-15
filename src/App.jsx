@@ -9,7 +9,7 @@ const GOD_MODE_DAILY_LIMIT = 4 * 60 * 60;
 
 // NOTE: In the future, you will map specific images to specific tier IDs.
 // For this demo, we use the generated Scout Bat image for standard tiers.
-const TIER_IMAGE_URL = "https://lh3.googleusercontent.com/pw/AP1GczOkj4d-d3F8_Lp3_j6V6_s8l0q4f8C8q5t8b9g3v1a5s2d4f6g8h0j2k4l6n8p0q2w4e6r8t0y2u4i6o8p0a2s4d6f8g0h2j4k6l8=w600-h900-s-no-gm?authuser=0";
+const TIER_IMAGE_URL = "/scout.png";
 
 // --- THE SEVEN SAGES HIERARCHY ---
 const TIERS = [
