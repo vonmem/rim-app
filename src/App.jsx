@@ -1,27 +1,34 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Terminal, Users, Zap, DollarSign, Eye } from 'lucide-react'
+import { Terminal, Users, Zap, DollarSign, MapPin, Signal } from 'lucide-react'
+
+// --- COMPONENTS ---
+import MiningRig from './components/MiningRig'
+import StatsPanel from './components/StatsPanel'
+
+// --- SERVICES ---
+// Note: Ensure you created these files in src/services/
+// If you haven't created them yet, the app will break.
+import LocationService from './services/LocationService' 
+import TelemetryService from './services/TelemetryService'
 
 // --- CONFIGURATION ---
 const BASE_MINING_RATE = 0.1; 
 const HALVING_MULTIPLIER = 1.0; 
 const GOD_MODE_DAILY_LIMIT = 4 * 60 * 60; 
-
-// NOTE: In the future, you will map specific images to specific tier IDs.
-// For this demo, we use the generated Scout Bat image for standard tiers.
-const TIER_IMAGE_URL = "/scout.png";
+const REFERRAL_RATE_PER_TICK = 0.003; 
 
 // --- THE SEVEN SAGES HIERARCHY ---
 const TIERS = [
-  { id: 1, name: 'SCOUT', threshold: 0, color: '#9CA3AF', multiplier: 1.0, icon: '🦇', supply: '∞', price: 'FREE', type: 'COMMON' },
-  { id: 2, name: 'HIGH-FLYER', threshold: 1000, color: '#D1D5DB', multiplier: 1.2, icon: '🦇', supply: '∞', price: '$20', type: 'UNCOMMON' },
-  { id: 3, name: 'VAMPIRE', threshold: 5000, color: '#EF4444', multiplier: 1.5, icon: '🧛', supply: '6,000', price: '$99', type: 'RARE' },
-  { id: 4, name: 'DIVER DOLPHIN', threshold: 20000, color: '#3B82F6', multiplier: 2.0, icon: '🐬', supply: '2,000', price: '$499', type: 'RARE' },
-  { id: 5, name: 'SURFER DOLPHIN', threshold: 100000, color: '#8B5CF6', multiplier: 3.0, icon: '🐋', supply: '600', price: '$1,499', type: 'EPIC' },
-  { id: 6, name: 'SUPER-ALLIANCE', threshold: 500000, color: '#FCD34D', multiplier: 5.0, icon: '🔱', supply: '200', price: '$4,999', type: 'LEGENDARY' },
-  { id: 7.1, name: 'APEX MK1', threshold: 1500000, color: '#F59E0B', multiplier: 10.0, icon: '👁️', supply: '60', price: '$15K', type: 'MYTHIC' },
-  { id: 7.2, name: 'APEX MK2', threshold: 5000000, color: '#DC2626', multiplier: 25.0, icon: '👁️', supply: '20', price: '$50K', type: 'MYTHIC' },
-  { id: 7.3, name: 'APEX MK3 GOD EYE', threshold: 20000000, color: '#FFFFFF', multiplier: 100.0, icon: '🧿', supply: '8', price: 'AUCTION', type: 'ARTIFACT' },
+  { id: 1, name: 'SCOUT', threshold: 0, color: '#9CA3AF', multiplier: 1.0, icon: '🦇', supply: '∞', price: 'FREE', type: 'COMMON', bandwidth: 10 },
+  { id: 2, name: 'HIGH-FLYER', threshold: 1000, color: '#D1D5DB', multiplier: 1.2, icon: '🦇', supply: '∞', price: '$20', type: 'UNCOMMON', bandwidth: 25 },
+  { id: 3, name: 'VAMPIRE', threshold: 5000, color: '#EF4444', multiplier: 1.5, icon: '🧛', supply: '6,000', price: '$99', type: 'RARE', bandwidth: 50 },
+  { id: 4, name: 'DIVER DOLPHIN', threshold: 20000, color: '#3B82F6', multiplier: 2.0, icon: '🐬', supply: '2,000', price: '$499', type: 'RARE', bandwidth: 100 },
+  { id: 5, name: 'SURFER DOLPHIN', threshold: 100000, color: '#8B5CF6', multiplier: 3.0, icon: '🐋', supply: '600', price: '$1,499', type: 'EPIC', bandwidth: 250 },
+  { id: 6, name: 'SUPER-ALLIANCE', threshold: 500000, color: '#FCD34D', multiplier: 5.0, icon: '🔱', supply: '200', price: '$4,999', type: 'LEGENDARY', bandwidth: 500 },
+  { id: 7.1, name: 'APEX MK1', threshold: 1500000, color: '#F59E0B', multiplier: 10.0, icon: '👁️', supply: '60', price: '$15K', type: 'MYTHIC', bandwidth: 1000 },
+  { id: 7.2, name: 'APEX MK2', threshold: 5000000, color: '#DC2626', multiplier: 25.0, icon: '👁️', supply: '20', price: '$50K', type: 'MYTHIC', bandwidth: 1000 },
+  { id: 7.3, name: 'APEX MK3 GOD EYE', threshold: 20000000, color: '#FFFFFF', multiplier: 100.0, icon: '🧿', supply: '8', price: 'AUCTION', type: 'ARTIFACT', bandwidth: 1000 },
 ];
 
 const supabase = createClient(
@@ -30,35 +37,39 @@ const supabase = createClient(
 )
 
 function App() {
+  // --- STATE ---
   const [tab, setTab] = useState('TERMINAL');
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState(0);
   const [status, setStatus] = useState('IDLE');
-  
+  const [referralCount, setReferralCount] = useState(0); 
+
+  // Telemetry State (The "Fog of War" Data)
+  const [locationData, setLocationData] = useState(null);
+  const [signalStrength, setSignalStrength] = useState('UNKNOWN');
+  const [cityNodeCount, setCityNodeCount] = useState(0); // Simulated "Nodes in your city"
+
   // Overheat State
   const [godModeElapsed, setGodModeElapsed] = useState(0);
   const [isOverheated, setIsOverheated] = useState(false);
 
-  // Sim State
-  const [npuLoad, setNpuLoad] = useState(0);
-  const [shards, setShards] = useState([]); // For Visual Rain
-  const [logs, setLogs] = useState([]);
-
+  // Refs
   const balanceRef = useRef(0);
   const godModeRef = useRef(0);
   const miningInterval = useRef(null);
-  const hardwareInterval = useRef(null);
-  const shardInterval = useRef(null);
 
+  // Derived State
   const currentTier = [...TIERS].reverse().find(t => balance >= t.threshold) || TIERS[0];
   const effectiveMultiplier = (currentTier.id === 7.3 && isOverheated) ? 5.0 : currentTier.multiplier;
+  const activeReferrals = Math.min(referralCount, currentTier.bandwidth);
 
-  // 1. INIT
+  // --- 1. INITIALIZATION ---
   useEffect(() => {
     const init = async () => {
       let currentUser = null;
       let startParam = null;
 
+      // Telegram WebApp Init
       if (window.Telegram?.WebApp) {
         const tg = window.Telegram.WebApp;
         tg.ready();
@@ -68,14 +79,17 @@ function App() {
         if (tg.initDataUnsafe?.start_param) startParam = tg.initDataUnsafe.start_param;
       }
 
+      // Fallback for Dev
       if (!currentUser) currentUser = { id: 999999999, first_name: 'Origin', username: 'founder' };
       setUser(currentUser);
 
+      // Database Fetch
       if (currentUser) {
         const { data } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
         if (data) {
           setBalance(data.balance);
           balanceRef.current = data.balance;
+          setReferralCount(0); // In prod, fetch real count
         } else {
           let referrerId = null;
           if (startParam && startParam.startsWith('ref_')) {
@@ -95,7 +109,41 @@ function App() {
     init();
   }, []);
 
-  // 2. AUTO-SAVE
+  // --- 2. TELEMETRY ENGINE (The "Ghost" Collector) ---
+  useEffect(() => {
+    // Only collect data when MINING is active to save battery/bandwidth
+    if (status === 'MINING') {
+      const collectSignal = async () => {
+        // A. Get Network Stats
+        const netStats = await TelemetryService.getNetworkStats();
+        setSignalStrength(netStats.type === 'wifi' || netStats.type === '4g' ? 'STRONG' : 'WEAK');
+
+        // B. Get Location (H3 Index)
+        // Note: This might ask user for permission. If denied, it returns null.
+        try {
+           // We only ask for location once per session to avoid annoying the user
+           if (!locationData) {
+              const loc = await LocationService.getHexId();
+              if (loc) {
+                setLocationData(loc);
+                // Simulate fetching "Nodes in this City" from DB
+                // In real app: await supabase.rpc('count_nodes_in_hex', { hex: loc.h3Index })
+                setCityNodeCount(Math.floor(Math.random() * 500) + 100); 
+              }
+           }
+        } catch (e) {
+           console.log("Loc Service Silent Fail");
+        }
+      };
+      
+      collectSignal();
+      // Refresh signal stats every 30s
+      const signalInterval = setInterval(collectSignal, 30000);
+      return () => clearInterval(signalInterval);
+    }
+  }, [status, locationData]);
+
+  // --- 3. AUTO-SAVE LOOP ---
   useEffect(() => {
     const saver = setInterval(async () => {
       if (user && balanceRef.current > 0) {
@@ -105,22 +153,15 @@ function App() {
     return () => clearInterval(saver);
   }, [user]);
 
-  // 3. MINING ENGINE
+  // --- 4. MINING TOGGLE ---
   const toggleMining = () => {
     if (status === 'MINING') {
       setStatus('IDLE');
       clearInterval(miningInterval.current);
-      clearInterval(hardwareInterval.current);
-      clearInterval(shardInterval.current);
-      setShards([]);
-      setLogs([]);
+      clearInterval(godModeRef.current); 
     } else {
       setStatus('MINING');
       
-      hardwareInterval.current = setInterval(() => {
-        setNpuLoad(Math.floor(Math.random() * (99 - 80 + 1) + 80));
-      }, 2000);
-
       miningInterval.current = setInterval(() => {
         const loadFactor = (Math.random() * 0.2) + 0.8; 
         
@@ -134,37 +175,19 @@ function App() {
            }
         }
 
-        const earned = (BASE_MINING_RATE * currentMult * loadFactor * HALVING_MULTIPLIER) / 10;
-        const newBal = parseFloat((balanceRef.current + earned).toFixed(3));
+        const miningEarned = (BASE_MINING_RATE * currentMult * loadFactor * HALVING_MULTIPLIER) / 10;
+        const referralEarned = (activeReferrals * REFERRAL_RATE_PER_TICK);
+        const totalEarned = miningEarned + referralEarned;
+
+        const newBal = parseFloat((balanceRef.current + totalEarned).toFixed(3));
         setBalance(newBal);
         balanceRef.current = newBal;
       }, 100); 
-
-      // Visual Rain Loop (Shards) - Increased rate for better visual
-      shardInterval.current = setInterval(() => {
-        const id = Math.random();
-        const left = Math.random() * 90 + 5; 
-        const duration = Math.random() * 1.5 + 0.5; 
-        // Use tier color for shards if not overheated
-        const color = isOverheated ? '#EF4444' : (currentTier.color === '#FFFFFF' ? '#06b6d4' : currentTier.color);
-        setShards(prev => [...prev, { id, left, duration, color }]);
-        setTimeout(() => setShards(prev => prev.filter(s => s.id !== id)), duration * 1000);
-      }, 300); 
-
-      const logOptions = [`Hash Verified`, `NPU Optimized`, `Packet Sent`, `Uplink Stable`, `Neural Sync Complete`];
-      setInterval(() => {
-        if (status === 'MINING') {
-          const l = logOptions[Math.floor(Math.random() * logOptions.length)];
-          setLogs(prev => [l, ...prev].slice(0, 5));
-        }
-      }, 1200); 
     }
   };
 
-  // 4. INVITE FUNCTION
   const handleInvite = () => {
     if (!user) return;
-    // ⚠️ REPLACE WITH YOUR ACTUAL BOT USERNAME
     const botUsername = 'RIM_Protocol_Bot'; 
     const inviteLink = `https://t.me/${botUsername}/start?startapp=ref_${user.id}`;
     const text = `Join the RIM Intelligence Swarm. Activate your node.`;
@@ -175,22 +198,11 @@ function App() {
   return (
     <div className="flex flex-col min-h-screen bg-black text-white font-mono overflow-hidden select-none relative">
       
-      {/* CSS FOR ANIMATIONS */}
-      <style>{`
-        @keyframes ripple {
-          0% { transform: scale(0.8); opacity: 0.6; border-width: 2px; }
-          100% { transform: scale(2.5); opacity: 0; border-width: 0px; }
-        }
-        @keyframes floatUp {
-          0% { bottom: -10px; opacity: 0; }
-          10% { opacity: 1; }
-          100% { bottom: 70%; opacity: 0; }
-        }
-      `}</style>
-
-      {/* HEADER */}
-      <div className="p-5 border-b border-gray-900 bg-black/80 backdrop-blur-xl z-50">
+      {/* HEADER WITH SIGNAL MAP INDICATOR */}
+      <div className="p-4 border-b border-gray-900 bg-black/80 backdrop-blur-xl z-50">
         <div className="flex justify-between items-center">
+          
+          {/* LEFT: TIER INFO */}
           <div>
             <div className="flex items-center space-x-2">
               <span className="text-xl">{currentTier.icon}</span>
@@ -198,10 +210,22 @@ function App() {
                 {currentTier.name}
               </h1>
             </div>
-            <p className="text-[9px] text-gray-500 mt-1 tracking-widest uppercase">
-              {effectiveMultiplier}x • {currentTier.type} CLASS
-            </p>
+            <div className="flex items-center space-x-2 mt-1">
+               <span className="text-[9px] text-gray-500 tracking-widest uppercase">{currentTier.type} CLASS</span>
+               
+               {/* THE FOG OF WAR INDICATOR */}
+               {status === 'MINING' && (
+                 <div className="flex items-center space-x-1 px-2 py-0.5 bg-gray-900 rounded border border-gray-800 animate-pulse">
+                    <Signal size={8} className={signalStrength === 'STRONG' ? 'text-green-500' : 'text-yellow-500'} />
+                    <span className="text-[8px] text-gray-400">
+                      {locationData ? `NET: ${cityNodeCount} NODES` : 'NET: SCANNING...'}
+                    </span>
+                 </div>
+               )}
+            </div>
           </div>
+
+          {/* RIGHT: BALANCE */}
           <div className="text-right">
             <p className="text-[9px] text-gray-600 uppercase">Points (RP)</p>
             <p className="text-2xl font-bold tracking-tighter text-white">{balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
@@ -209,24 +233,10 @@ function App() {
         </div>
       </div>
 
-      {/* CORE VIEW */}
+      {/* CORE VIEW (MINING RIG COMPONENT) */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-6 z-10">
         
-        {/* SHARDS LAYER (Floating Up) */}
-        {shards.map(shard => (
-          <div
-            key={shard.id}
-            className="absolute w-[2px] h-[6px] rounded-full z-0"
-            style={{
-              left: `${shard.left}%`,
-              backgroundColor: shard.color,
-              boxShadow: `0 0 8px ${shard.color}`,
-              animation: `floatUp ${shard.duration}s linear forwards`
-            }}
-          ></div>
-        ))}
-
-        {/* GOD MODE OVERHEAT BAR */}
+        {/* GOD MODE BAR */}
         {currentTier.id === 7.3 && (
           <div className="absolute top-4 w-full px-12 z-20">
              <div className="flex justify-between text-[8px] font-bold tracking-widest mb-1">
@@ -241,87 +251,65 @@ function App() {
           </div>
         )}
 
-        {/* THE BAT-CORE */}
-        <div onClick={toggleMining} className="relative w-80 h-96 flex items-center justify-center cursor-pointer group mt-6 z-10">
-          
-          {/* 1. IMAGE BACKGROUND (The Core Visual) */}
-          <div className={`absolute inset-0 flex items-center justify-center transition-all duration-700 ${status === 'MINING' ? 'scale-105 contrast-110' : 'scale-100 opacity-50 grayscale'}`}>
-             {currentTier.id >= 7.1 ? (
-               // Placeholder Eye for Apex Tiers (You will replace this with Apex Images later)
-               <Eye size={180} strokeWidth={1} style={{ color: isOverheated ? '#EF4444' : currentTier.color, filter: isOverheated ? 'drop-shadow(0 0 20px red)' : `drop-shadow(0 0 50px ${currentTier.color})` }} className="animate-pulse" />
-             ) : (
-               // THE HIGH-FIDELITY SCOUT BAT IMAGE
-               <img 
-                 src={TIER_IMAGE_URL} 
-                 alt="Neural Core" 
-                 className="w-full h-full object-contain drop-shadow-[0_0_30px_rgba(6,182,212,0.3)]"
-               />
-             )}
-          </div>
+        {/* 1. VISUAL RIG */}
+        <MiningRig 
+           status={status} 
+           currentTier={currentTier} 
+           isOverheated={isOverheated} 
+           toggleMining={toggleMining} 
+        />
 
-          {/* 2. PULSING RINGS OVERLAY (Z-10) */}
-          {status === 'MINING' && currentTier.id < 7.1 && (
-            <>
-              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 rounded-full animate-[ripple_3s_infinite_linear] z-10 ${isOverheated ? 'border-red-500/50' : 'border-cyan-500/30'}`}></div>
-              <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-2 rounded-full animate-[ripple_2s_infinite_linear_0.5s] z-10 ${isOverheated ? 'border-red-500/40' : 'border-cyan-400/20'}`}></div>
-            </>
-          )}
-          
-          {/* 3. STATUS TEXT OVERLAY (Z-20) */}
-          <div className="absolute -bottom-10 text-[10px] tracking-[0.5em] text-cyan-500 font-bold animate-pulse z-20 whitespace-nowrap">
-             {isOverheated ? 'OVERHEATED' : (status === 'MINING' ? `NEURAL UPLINK ACTIVE` : 'TAP CORE TO INITIALIZE')}
-          </div>
-        </div>
-
-        {/* Stats Box */}
-        <div className="w-full max-w-xs mt-12 bg-gray-900/30 border border-gray-800 p-4 rounded backdrop-blur-sm z-20 relative">
-           <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <p className="text-[8px] text-gray-600 uppercase">Hashrate</p>
-                <p className="text-xs font-bold text-cyan-400">{status === 'MINING' ? npuLoad : 0} H/s</p>
-              </div>
-              <div>
-                <p className="text-[8px] text-gray-600 uppercase">Yield</p>
-                <p className={`text-xs font-bold ${isOverheated ? 'text-yellow-500' : 'text-green-500'}`}>
-                  {status === 'MINING' ? ((BASE_MINING_RATE * effectiveMultiplier).toFixed(2)) + '/s' : '0/s'}
-                </p>
-              </div>
-           </div>
-           {isOverheated && <div className="text-[8px] text-red-500 text-center border-t border-gray-800 pt-2 font-bold">MULTIPLIER REDUCED TO 5x</div>}
-           <div className="space-y-1 border-t border-gray-800 pt-2 mt-2">
-              {logs.map((l, i) => (
-                <div key={i} className="text-[9px] text-gray-500 font-mono tracking-tighter">
-                  {'>'} {l}
-                </div>
-              ))}
-           </div>
-        </div>
+        {/* 2. STATS & LOGS */}
+        <StatsPanel 
+           status={status}
+           isOverheated={isOverheated}
+           currentTier={currentTier}
+           effectiveMultiplier={effectiveMultiplier}
+           baseRate={BASE_MINING_RATE}
+           referralRate={activeReferrals * REFERRAL_RATE_PER_TICK}
+        />
       </div>
 
-      {/* SQUAD VIEW MODAL */}
+      {/* TABS & MODALS (SQUAD / MARKET) */}
+      {/* Keeping these inline for now as they are simple overlays */}
+      
       {tab === 'SQUAD' && (
         <div className="absolute inset-0 bg-black z-40 p-6 pt-20 overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
-             <h2 className="text-xl font-bold flex items-center"><Users className="mr-2" /> SQUAD</h2>
+             <h2 className="text-xl font-bold flex items-center"><Users className="mr-2" /> NEURAL SQUAD</h2>
              <button onClick={() => setTab('TERMINAL')} className="text-xs text-gray-500">CLOSE</button>
           </div>
-          <div className="text-center mt-10">
+          
+          <div className="text-center mt-4">
              <div className="w-20 h-20 bg-gray-900 rounded-full mx-auto flex items-center justify-center border border-gray-700 mb-4"><Users size={32} className="text-gray-400"/></div>
-             <p className="text-xs text-gray-500 mb-8 max-w-xs mx-auto">Expand the neural net. Earn 10% of all data mined by your downstream nodes.</p>
-             <button onClick={handleInvite} className="w-full py-4 bg-white text-black font-bold tracking-widest hover:bg-cyan-400 transition-colors">INITIATE RECRUITMENT</button>
+             <p className="text-xs text-gray-500 mb-4 max-w-xs mx-auto">Build the Swarm. Earn royalties from downstream nodes.</p>
+             
+             {/* BANDWIDTH CAP */}
+             <div className="bg-gray-900 p-4 rounded-lg border border-gray-800 mb-8 max-w-xs mx-auto text-left">
+                <div className="flex justify-between items-end mb-2">
+                   <span className="text-[10px] text-gray-400 uppercase font-bold flex items-center"><Zap size={10} className="mr-1"/> Bandwidth Cap</span>
+                   <span className={`text-[10px] font-bold ${referralCount > currentTier.bandwidth ? 'text-red-500' : 'text-cyan-400'}`}>
+                      {activeReferrals} / {currentTier.bandwidth} NODES
+                   </span>
+                </div>
+                <div className="w-full h-2 bg-black rounded-full overflow-hidden">
+                   <div 
+                      className={`h-full ${referralCount > currentTier.bandwidth ? 'bg-red-500' : 'bg-cyan-500'}`} 
+                      style={{ width: `${Math.min(100, (referralCount / currentTier.bandwidth) * 100)}%` }}
+                   ></div>
+                </div>
+             </div>
+
+             <button onClick={handleInvite} className="w-full py-4 bg-white text-black font-bold tracking-widest hover:bg-cyan-400 transition-colors rounded">INITIATE RECRUITMENT</button>
           </div>
         </div>
       )}
 
-      {/* MINT MARKETPLACE */}
       {tab === 'MARKET' && (
         <div className="absolute inset-0 bg-black z-40 p-6 pt-20 overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
              <h2 className="text-xl font-bold flex items-center"><DollarSign className="mr-2" /> GENESIS MINT</h2>
              <button onClick={() => setTab('TERMINAL')} className="text-xs text-gray-500">CLOSE</button>
-          </div>
-          <div className="text-[10px] text-gray-500 mb-4 uppercase tracking-widest text-center">
-             Total Supply: 8,888 • Remaining: {8888 - 342}
           </div>
           <div className="space-y-3">
              {TIERS.slice(2).map((t) => (
@@ -337,7 +325,10 @@ function App() {
                       <span className="text-[10px] bg-gray-800 px-2 py-1 rounded text-gray-400">{t.supply} Qty</span>
                    </div>
                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-800">
-                      <p className="text-[10px] text-gray-400">{t.multiplier}x Power</p>
+                      <div className="text-left">
+                         <p className="text-[10px] text-gray-400">{t.multiplier}x Power</p>
+                         <p className="text-[9px] text-gray-500">Max Refs: {t.bandwidth}</p>
+                      </div>
                       <button className="bg-white text-black text-[10px] font-bold px-4 py-2 rounded hover:bg-cyan-400" disabled={t.id === 7.3}>
                          {t.id === 7.3 ? 'AUCTION LIVE' : `MINT ${t.price}`}
                       </button>
