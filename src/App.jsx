@@ -5,6 +5,7 @@ import { Terminal, Users, Zap, DollarSign, MapPin, Signal } from 'lucide-react'
 // --- COMPONENTS ---
 import MiningRig from './components/MiningRig'
 import StatsPanel from './components/StatsPanel'
+import MapTab from './components/MapTab';
 
 // --- SERVICES ---
 // Note: Ensure you created these files in src/services/
@@ -233,41 +234,52 @@ function App() {
         </div>
       </div>
 
-      {/* CORE VIEW (MINING RIG COMPONENT) */}
-      <div className="flex-1 relative flex flex-col items-center justify-center p-6 z-10">
+      {/* CORE VIEW */}
+      <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
         
-        {/* GOD MODE BAR */}
-        {currentTier.id === 7.3 && (
-          <div className="absolute top-4 w-full px-12 z-20">
-             <div className="flex justify-between text-[8px] font-bold tracking-widest mb-1">
-                <span className={isOverheated ? 'text-red-500 animate-pulse' : 'text-gray-500'}>
-                   {isOverheated ? 'SYSTEM OVERHEATED' : 'GOD MODE STABILITY'}
-                </span>
-                <span className="text-gray-500">{Math.floor((godModeElapsed / GOD_MODE_DAILY_LIMIT) * 100)}%</span>
-             </div>
-             <div className="w-full h-1 bg-gray-900 rounded-full">
-                <div className={`h-full rounded-full ${isOverheated ? 'bg-red-500' : 'bg-white'}`} style={{ width: `${Math.min(100, (godModeElapsed / GOD_MODE_DAILY_LIMIT) * 100)}%` }}></div>
-             </div>
-          </div>
+        {/* VIEW LOGIC: If MAP tab is active, show Map. Else, show Mining Rig */}
+        {tab === 'MAP' ? (
+           <MapTab 
+              locationData={locationData} 
+              cityNodeCount={cityNodeCount} 
+           />
+        ) : (
+           <>
+              {/* GOD MODE BAR (Only show on Rig View) */}
+              {currentTier.id === 7.3 && (
+                <div className="absolute top-4 w-full px-12 z-20">
+                   {/* ... (Keep existing God Mode code) ... */}
+                   <div className="flex justify-between text-[8px] font-bold tracking-widest mb-1">
+                      <span className={isOverheated ? 'text-red-500 animate-pulse' : 'text-gray-500'}>
+                         {isOverheated ? 'SYSTEM OVERHEATED' : 'GOD MODE STABILITY'}
+                      </span>
+                      <span className="text-gray-500">{Math.floor((godModeElapsed / GOD_MODE_DAILY_LIMIT) * 100)}%</span>
+                   </div>
+                   <div className="w-full h-1 bg-gray-900 rounded-full">
+                      <div className={`h-full rounded-full ${isOverheated ? 'bg-red-500' : 'bg-white'}`} style={{ width: `${Math.min(100, (godModeElapsed / GOD_MODE_DAILY_LIMIT) * 100)}%` }}></div>
+                   </div>
+                </div>
+              )}
+
+              {/* 1. VISUAL RIG */}
+              <MiningRig 
+                 status={status} 
+                 currentTier={currentTier} 
+                 isOverheated={isOverheated} 
+                 toggleMining={toggleMining} 
+              />
+
+              {/* 2. STATS & LOGS */}
+              <StatsPanel 
+                 status={status}
+                 isOverheated={isOverheated}
+                 currentTier={currentTier}
+                 effectiveMultiplier={effectiveMultiplier}
+                 baseRate={BASE_MINING_RATE}
+                 referralRate={activeReferrals * REFERRAL_RATE_PER_TICK}
+              />
+           </>
         )}
-
-        {/* 1. VISUAL RIG */}
-        <MiningRig 
-           status={status} 
-           currentTier={currentTier} 
-           isOverheated={isOverheated} 
-           toggleMining={toggleMining} 
-        />
-
-        {/* 2. STATS & LOGS */}
-        <StatsPanel 
-           status={status}
-           isOverheated={isOverheated}
-           currentTier={currentTier}
-           effectiveMultiplier={effectiveMultiplier}
-           baseRate={BASE_MINING_RATE}
-           referralRate={activeReferrals * REFERRAL_RATE_PER_TICK}
-        />
       </div>
 
       {/* TABS & MODALS (SQUAD / MARKET) */}
@@ -340,9 +352,12 @@ function App() {
       )}
 
       {/* FOOTER */}
-      <div className="grid grid-cols-3 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
+      <div className="grid grid-cols-4 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
         <button onClick={() => setTab('TERMINAL')} className={`p-4 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
           <Terminal size={18} /><span className="text-[8px] mt-1 font-bold">GRID</span>
+        </button>
+        <button onClick={() => setTab('MAP')} className={`p-4 flex flex-col items-center ${tab === 'MAP' ? 'text-white' : 'text-gray-600'}`}>
+          <MapPin size={18} /><span className="text-[8px] mt-1 font-bold">MAP</span>
         </button>
         <button onClick={() => setTab('SQUAD')} className={`p-4 flex flex-col items-center ${tab === 'SQUAD' ? 'text-white' : 'text-gray-600'}`}>
           <Users size={18} /><span className="text-[8px] mt-1 font-bold">SQUAD</span>
