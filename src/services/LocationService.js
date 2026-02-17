@@ -1,5 +1,7 @@
 // src/services/LocationService.js
-import h3 from 'h3-js';
+
+// FIX: Use "import * as h3" instead of "import h3"
+import * as h3 from 'h3-js';
 
 class LocationService {
   
