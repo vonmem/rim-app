@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Terminal, Users, Zap, DollarSign, MapPin, Signal } from 'lucide-react'
+import { Terminal, Users, Zap, DollarSign, MapPin, Signal, Wallet } from 'lucide-react'
 
 // --- COMPONENTS ---
 import MiningRig from './components/MiningRig'
 import StatsPanel from './components/StatsPanel'
 import MapTab from './components/MapTab';
+import Inventory from './components/Inventory';
 
 // --- SERVICES ---
 // Note: Ensure you created these files in src/services/
@@ -237,18 +238,22 @@ function App() {
       {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
         
-        {/* VIEW LOGIC: If MAP tab is active, show Map. Else, show Mining Rig */}
         {tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
               cityNodeCount={cityNodeCount} 
+           />
+        ) : tab === 'WALLET' ? (
+           <Inventory 
+              balance={balance} 
+              currentTier={currentTier} 
+              referralCount={referralCount}
            />
         ) : (
            <>
               {/* GOD MODE BAR (Only show on Rig View) */}
               {currentTier.id === 7.3 && (
                 <div className="absolute top-4 w-full px-12 z-20">
-                   {/* ... (Keep existing God Mode code) ... */}
                    <div className="flex justify-between text-[8px] font-bold tracking-widest mb-1">
                       <span className={isOverheated ? 'text-red-500 animate-pulse' : 'text-gray-500'}>
                          {isOverheated ? 'SYSTEM OVERHEATED' : 'GOD MODE STABILITY'}
@@ -352,12 +357,15 @@ function App() {
       )}
 
       {/* FOOTER */}
-      <div className="grid grid-cols-4 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
+      <div className="grid grid-cols-5 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
         <button onClick={() => setTab('TERMINAL')} className={`p-4 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
           <Terminal size={18} /><span className="text-[8px] mt-1 font-bold">GRID</span>
         </button>
         <button onClick={() => setTab('MAP')} className={`p-4 flex flex-col items-center ${tab === 'MAP' ? 'text-white' : 'text-gray-600'}`}>
           <MapPin size={18} /><span className="text-[8px] mt-1 font-bold">MAP</span>
+        </button>
+        <button onClick={() => setTab('WALLET')} className={`p-4 flex flex-col items-center ${tab === 'WALLET' ? 'text-white' : 'text-gray-600'}`}>
+          <Wallet size={18} /><span className="text-[8px] mt-1 font-bold">WALLET</span>
         </button>
         <button onClick={() => setTab('SQUAD')} className={`p-4 flex flex-col items-center ${tab === 'SQUAD' ? 'text-white' : 'text-gray-600'}`}>
           <Users size={18} /><span className="text-[8px] mt-1 font-bold">SQUAD</span>
