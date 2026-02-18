@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ShoppingBag, Zap, Shield, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, Zap, Shield, X, Check } from 'lucide-react';
 
 const Marketplace = ({ balance, userInventory, onBuyItem }) => {
   const [loadingId, setLoadingId] = useState(null);
+  const [confirmItem, setConfirmItem] = useState(null); // Stores the item waiting for confirmation
 
   // Define the Items
   const ITEMS = [
@@ -32,16 +33,24 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
     { id: 'tier_7.1', name: 'APEX MK1', type: 'RIG', price: 1500000, icon: '👁️', multiplier: '10x' },
   ];
 
-  const handlePurchase = async (item) => {
-    if (balance < item.price) return; // Logic handled in App.jsx too, but safe check here
-    
-    setLoadingId(item.id);
-    await onBuyItem(item); // Call the parent function
+  // 1. User Clicks "Buy" -> Open Modal
+  const initiatePurchase = (item) => {
+    if (balance < item.price) return;
+    setConfirmItem(item);
+  };
+
+  // 2. User Clicks "Confirm" -> Execute Transaction
+  const executePurchase = async () => {
+    if (!confirmItem) return;
+
+    setLoadingId(confirmItem.id);
+    await onBuyItem(confirmItem); // Call parent
     setLoadingId(null);
+    setConfirmItem(null); // Close modal
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-6 pt-20 overflow-y-auto bg-black text-white pb-24">
+    <div className="flex flex-col h-full w-full p-6 pt-20 overflow-y-auto bg-black text-white pb-24 relative">
       
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
@@ -68,15 +77,15 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
                   </div>
                </div>
                <button 
-                  onClick={() => handlePurchase(item)}
-                  disabled={balance < item.price || loadingId === item.id}
+                  onClick={() => initiatePurchase(item)}
+                  disabled={balance < item.price}
                   className={`px-4 py-2 text-[10px] font-bold rounded transition-colors ${
                     balance >= item.price 
                     ? 'bg-white text-black hover:bg-cyan-400' 
                     : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                   }`}
                >
-                  {loadingId === item.id ? 'PROCESSING...' : `BUY ${item.price}`}
+                  BUY {item.price}
                </button>
             </div>
           ))}
@@ -107,15 +116,15 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
                     </span>
                  ) : (
                     <button 
-                       onClick={() => handlePurchase(item)}
-                       disabled={balance < item.price || loadingId === item.id}
+                       onClick={() => initiatePurchase(item)}
+                       disabled={balance < item.price}
                        className={`px-4 py-2 text-[10px] font-bold rounded transition-colors ${
                          balance >= item.price 
                          ? 'bg-white text-black hover:bg-cyan-400' 
                          : 'bg-gray-800 text-gray-500 cursor-not-allowed'
                        }`}
                     >
-                       {loadingId === item.id ? 'MINTING...' : `MINT ${item.price}`}
+                       MINT {item.price}
                     </button>
                  )}
               </div>
@@ -123,6 +132,54 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
           })}
         </div>
       </div>
+
+      {/* --- CONFIRMATION MODAL --- */}
+      {confirmItem && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
+           <div className="bg-gray-900 border border-cyan-500 rounded-lg p-6 w-full max-w-sm shadow-2xl relative overflow-hidden">
+              
+              {/* Scanline Effect */}
+              <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/50 animate-pulse"></div>
+
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center">
+                 <ShoppingBag size={18} className="mr-2 text-cyan-400"/> CONFIRM ACQUISITION
+              </h3>
+
+              <div className="bg-black/50 p-4 rounded mb-6 border border-gray-800">
+                 <div className="flex justify-between items-center mb-2">
+                    <span className="text-3xl">{confirmItem.icon}</span>
+                    <div className="text-right">
+                       <p className="text-[10px] text-gray-500 uppercase">Item Cost</p>
+                       <p className="text-xl font-mono text-cyan-400 font-bold">{confirmItem.price} RP</p>
+                    </div>
+                 </div>
+                 <p className="text-sm font-bold text-white">{confirmItem.name}</p>
+                 <p className="text-xs text-gray-400 mt-1">{confirmItem.type === 'RIG' ? `Permanently unlocks ${confirmItem.multiplier} mining power.` : confirmItem.desc}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                 <button 
+                    onClick={() => setConfirmItem(null)}
+                    className="py-3 rounded bg-gray-800 text-gray-400 font-bold text-xs hover:bg-gray-700 flex items-center justify-center"
+                 >
+                    <X size={14} className="mr-1"/> CANCEL
+                 </button>
+                 <button 
+                    onClick={executePurchase}
+                    disabled={loadingId === confirmItem.id}
+                    className="py-3 rounded bg-white text-black font-bold text-xs hover:bg-cyan-400 flex items-center justify-center"
+                 >
+                    {loadingId === confirmItem.id ? (
+                       <span className="animate-pulse">PROCESSING...</span>
+                    ) : (
+                       <><Check size={14} className="mr-1"/> CONFIRM</>
+                    )}
+                 </button>
+              </div>
+
+           </div>
+        </div>
+      )}
 
     </div>
   );
