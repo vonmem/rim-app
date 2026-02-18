@@ -304,36 +304,28 @@ const handleBuyItem = async (item) => {
         </div>
       </div>
 
-      {/* CORE VIEW (Center Screen) */}
+      {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
         
-        {/* 1. IF TAB IS MAP */}
         {tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
               cityNodeCount={cityNodeCount} 
            />
-        
-        {/* 2. ELSE IF TAB IS WALLET */}
         ) : tab === 'WALLET' ? (
            <Inventory 
               balance={balance} 
               currentTier={currentTier} 
               referralCount={referralCount}
            />
-
-        {/* 3. ELSE IF TAB IS MARKET (NEW!) */}
         ) : tab === 'MARKET' ? (
            <Marketplace 
               balance={balance} 
               userInventory={inventory}
               onBuyItem={handleBuyItem}
            />
-
-        {/* 4. ELSE (DEFAULT) -> SHOW MINING RIG */}
         ) : (
            <>
-              {/* GOD MODE BAR (Only show on Rig View) */}
               {currentTier.id === 7.3 && (
                 <div className="absolute top-4 w-full px-12 z-20">
                    <div className="flex justify-between text-[8px] font-bold tracking-widest mb-1">
@@ -348,7 +340,6 @@ const handleBuyItem = async (item) => {
                 </div>
               )}
 
-              {/* VISUAL RIG */}
               <MiningRig 
                  status={status} 
                  currentTier={currentTier} 
@@ -356,7 +347,6 @@ const handleBuyItem = async (item) => {
                  toggleMining={toggleMining} 
               />
 
-              {/* STATS & LOGS */}
               <StatsPanel 
                  status={status}
                  isOverheated={isOverheated}
