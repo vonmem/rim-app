@@ -148,13 +148,13 @@ function App() {
   // --- 3. HEARTBEAT & SYNC LOOP (The "Proof of Life") ---
   useEffect(() => {
     // A. Heartbeat (Send "I am alive" to server)
-    const heartbeatParams = { last_heartbeat: new Date().toISOString() };
-    
     const beater = setInterval(async () => {
       if (status === 'MINING' && user) {
-        // We only update the timestamp. We DO NOT update the balance here.
-        // The Python Validator will handle the money.
-        await supabase.from('users').update(heartbeatParams).eq('id', user.id);
+        // FIX: Create the timestamp INSIDE the interval so it is always fresh
+        const now = new Date().toISOString();
+        
+        // Fire and forget - update the timestamp
+        await supabase.from('users').update({ last_heartbeat: now }).eq('id', user.id);
       }
     }, 10000); // Ping every 10 seconds
 
@@ -164,7 +164,6 @@ function App() {
         const { data } = await supabase.from('users').select('balance').eq('id', user.id).single();
         if (data) {
           // If our local visual balance is wildly different (>5% diff), snap to server balance
-          // This prevents "Cheating" visually
           if (Math.abs(balanceRef.current - data.balance) > 50) {
              console.log("Syncing with Validator...");
              setBalance(data.balance);
