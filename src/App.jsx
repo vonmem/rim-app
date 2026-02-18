@@ -7,6 +7,7 @@ import MiningRig from './components/MiningRig'
 import StatsPanel from './components/StatsPanel'
 import MapTab from './components/MapTab';
 import Inventory from './components/Inventory';
+import Marketplace from './components/Marketplace';
 
 // --- SERVICES ---
 // Note: Ensure you created these files in src/services/
@@ -44,7 +45,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState(0);
   const [status, setStatus] = useState('IDLE');
-  const [referralCount, setReferralCount] = useState(0); 
+  const [referralCount, setReferralCount] = useState(0);
+  const [inventory, setInventory] = useState([]); // Stores ['tier_2', 'cloud_relay', etc.] 
 
   // Telemetry State (The "Fog of War" Data)
   const [locationData, setLocationData] = useState(null);
@@ -60,8 +62,11 @@ function App() {
   const godModeRef = useRef(0);
   const miningInterval = useRef(null);
 
-  // Derived State
-  const currentTier = [...TIERS].reverse().find(t => balance >= t.threshold) || TIERS[0];
+  // Calculate Tier based on OWNED ITEMS, not Balance
+  const currentTier = [...TIERS].reverse().find(t => 
+    t.id === 1 || inventory.includes(`tier_${t.id}`)
+  ) || TIERS[0];
+  
   const effectiveMultiplier = (currentTier.id === 7.3 && isOverheated) ? 5.0 : currentTier.multiplier;
   const activeReferrals = Math.min(referralCount, currentTier.bandwidth);
 
@@ -87,24 +92,37 @@ function App() {
 
       // Database Fetch
       if (currentUser) {
+        // We select 'inventory' along with everything else
         const { data } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
+        
         if (data) {
+          // EXISTING USER: Load their saved data
           setBalance(data.balance);
           balanceRef.current = data.balance;
           setReferralCount(0); // In prod, fetch real count
+          
+          // NEW: Load their inventory (default to empty array if null)
+          setInventory(data.inventory || []); 
+          
         } else {
+          // NEW USER: Create account
           let referrerId = null;
           if (startParam && startParam.startsWith('ref_')) {
              referrerId = parseInt(startParam.split('_')[1]);
           }
+          
+          // Insert with default empty inventory
           await supabase.from('users').insert({ 
             id: currentUser.id, 
             first_name: currentUser.first_name, 
             balance: 100,
-            referred_by: referrerId
+            referred_by: referrerId,
+            inventory: [] // Start with empty pockets
           });
+          
           setBalance(100);
           balanceRef.current = 100;
+          setInventory([]);
         }
       }
     };
@@ -221,6 +239,33 @@ function App() {
     window.open(url, '_blank');
   };
 
+const handleBuyItem = async (item) => {
+     if (balanceRef.current < item.price) return;
+
+     // 1. Optimistic Update (Visual)
+     const newBal = balanceRef.current - item.price;
+     setBalance(newBal);
+     balanceRef.current = newBal;
+     
+     const newInventory = [...inventory, item.id];
+     setInventory(newInventory);
+
+     // 2. Database Update
+     // We update both balance and inventory array
+     const { error } = await supabase
+       .from('users')
+       .update({ 
+          balance: newBal,
+          inventory: newInventory 
+       })
+       .eq('id', user.id);
+
+     if (error) {
+        // Rollback if failed (Optional, but good practice)
+        console.error("Purchase failed", error);
+     }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-black text-white font-mono overflow-hidden select-none relative">
       
@@ -259,20 +304,33 @@ function App() {
         </div>
       </div>
 
-      {/* CORE VIEW */}
+      {/* CORE VIEW (Center Screen) */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
         
+        {/* 1. IF TAB IS MAP */}
         {tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
               cityNodeCount={cityNodeCount} 
            />
+        
+        {/* 2. ELSE IF TAB IS WALLET */}
         ) : tab === 'WALLET' ? (
            <Inventory 
               balance={balance} 
               currentTier={currentTier} 
               referralCount={referralCount}
            />
+
+        {/* 3. ELSE IF TAB IS MARKET (NEW!) */}
+        ) : tab === 'MARKET' ? (
+           <Marketplace 
+              balance={balance} 
+              userInventory={inventory}
+              onBuyItem={handleBuyItem}
+           />
+
+        {/* 4. ELSE (DEFAULT) -> SHOW MINING RIG */}
         ) : (
            <>
               {/* GOD MODE BAR (Only show on Rig View) */}
@@ -290,7 +348,7 @@ function App() {
                 </div>
               )}
 
-              {/* 1. VISUAL RIG */}
+              {/* VISUAL RIG */}
               <MiningRig 
                  status={status} 
                  currentTier={currentTier} 
@@ -298,7 +356,7 @@ function App() {
                  toggleMining={toggleMining} 
               />
 
-              {/* 2. STATS & LOGS */}
+              {/* STATS & LOGS */}
               <StatsPanel 
                  status={status}
                  isOverheated={isOverheated}
@@ -342,40 +400,6 @@ function App() {
              </div>
 
              <button onClick={handleInvite} className="w-full py-4 bg-white text-black font-bold tracking-widest hover:bg-cyan-400 transition-colors rounded">INITIATE RECRUITMENT</button>
-          </div>
-        </div>
-      )}
-
-      {tab === 'MARKET' && (
-        <div className="absolute inset-0 bg-black z-40 p-6 pt-20 overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-             <h2 className="text-xl font-bold flex items-center"><DollarSign className="mr-2" /> GENESIS MINT</h2>
-             <button onClick={() => setTab('TERMINAL')} className="text-xs text-gray-500">CLOSE</button>
-          </div>
-          <div className="space-y-3">
-             {TIERS.slice(2).map((t) => (
-                <div key={t.id} className="bg-gray-900 border border-gray-800 p-4 rounded-lg">
-                   <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center space-x-3">
-                         <div className="text-2xl">{t.icon}</div>
-                         <div>
-                            <p className="text-xs font-bold text-white uppercase">{t.name}</p>
-                            <p className="text-[9px] text-cyan-400 font-bold">{t.type}</p>
-                         </div>
-                      </div>
-                      <span className="text-[10px] bg-gray-800 px-2 py-1 rounded text-gray-400">{t.supply} Qty</span>
-                   </div>
-                   <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-800">
-                      <div className="text-left">
-                         <p className="text-[10px] text-gray-400">{t.multiplier}x Power</p>
-                         <p className="text-[9px] text-gray-500">Max Refs: {t.bandwidth}</p>
-                      </div>
-                      <button className="bg-white text-black text-[10px] font-bold px-4 py-2 rounded hover:bg-cyan-400" disabled={t.id === 7.3}>
-                         {t.id === 7.3 ? 'AUCTION LIVE' : `MINT ${t.price}`}
-                      </button>
-                   </div>
-                </div>
-             ))}
           </div>
         </div>
       )}
