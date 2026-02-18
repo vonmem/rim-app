@@ -145,15 +145,40 @@ function App() {
     }
   }, [status, locationData]);
 
-  // --- 3. AUTO-SAVE LOOP ---
+  // --- 3. HEARTBEAT & SYNC LOOP (The "Proof of Life") ---
   useEffect(() => {
-    const saver = setInterval(async () => {
-      if (user && balanceRef.current > 0) {
-        await supabase.from('users').update({ balance: balanceRef.current }).eq('id', user.id);
+    // A. Heartbeat (Send "I am alive" to server)
+    const heartbeatParams = { last_heartbeat: new Date().toISOString() };
+    
+    const beater = setInterval(async () => {
+      if (status === 'MINING' && user) {
+        // We only update the timestamp. We DO NOT update the balance here.
+        // The Python Validator will handle the money.
+        await supabase.from('users').update(heartbeatParams).eq('id', user.id);
       }
-    }, 5000);
-    return () => clearInterval(saver);
-  }, [user]);
+    }, 10000); // Ping every 10 seconds
+
+    // B. Re-Sync (Get "True Balance" from server)
+    const syncer = setInterval(async () => {
+      if (user) {
+        const { data } = await supabase.from('users').select('balance').eq('id', user.id).single();
+        if (data) {
+          // If our local visual balance is wildly different (>5% diff), snap to server balance
+          // This prevents "Cheating" visually
+          if (Math.abs(balanceRef.current - data.balance) > 50) {
+             console.log("Syncing with Validator...");
+             setBalance(data.balance);
+             balanceRef.current = data.balance;
+          }
+        }
+      }
+    }, 30000); // Check server truth every 30s
+
+    return () => {
+      clearInterval(beater);
+      clearInterval(syncer);
+    };
+  }, [user, status]);
 
   // --- 4. MINING TOGGLE ---
   const toggleMining = () => {
