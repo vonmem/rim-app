@@ -46,7 +46,8 @@ function App() {
   const [balance, setBalance] = useState(0);
   const [status, setStatus] = useState('IDLE');
   const [referralCount, setReferralCount] = useState(0);
-  const [inventory, setInventory] = useState([]); // Stores ['tier_2', 'cloud_relay', etc.] 
+  const [inventory, setInventory] = useState([]); // Stores ['tier_2', 'cloud_relay', etc.]
+  const [relayExpiry, setRelayExpiry] = useState(null); // Timestamp of expiry 
 
   // Telemetry State (The "Fog of War" Data)
   const [locationData, setLocationData] = useState(null);
@@ -103,6 +104,11 @@ function App() {
           
           // NEW: Load their inventory (default to empty array if null)
           setInventory(data.inventory || []); 
+          
+          // NEW: Load Relay Expiry
+          if (data.relay_expiry) {
+             setRelayExpiry(new Date(data.relay_expiry));
+          } 
           
         } else {
           // NEW USER: Create account
@@ -242,28 +248,53 @@ function App() {
 const handleBuyItem = async (item) => {
      if (balanceRef.current < item.price) return;
 
-     // 1. Optimistic Update (Visual)
+     // 1. Calculate Costs
      const newBal = balanceRef.current - item.price;
      setBalance(newBal);
      balanceRef.current = newBal;
-     
-     const newInventory = [...inventory, item.id];
-     setInventory(newInventory);
 
-     // 2. Database Update
-     // We update both balance and inventory array
+     // 2. Handle Special Items (Consumables)
+     let updates = { balance: newBal };
+     let newInventory = [...inventory];
+
+     if (item.id === 'cloud_relay_1h') {
+        // ACTIVATE IMMEDIATELY: Set expiry to 24 hours from now
+        const now = new Date();
+        const expiry = new Date(now.getTime() + (24 * 60 * 60 * 1000)); // 24 Hours
+        
+        updates.relay_expiry = expiry.toISOString();
+        setRelayExpiry(expiry); // Update local state (We will create this state next)
+        
+        // Don't add to inventory list if it's consumed immediately, 
+        // OR add it if you want a history. Let's keep it out of inventory to avoid duplicates.
+     } 
+     else {
+        // Standard Items (NFTs)
+        newInventory = [...inventory, item.id];
+        setInventory(newInventory);
+        updates.inventory = newInventory;
+     }
+
+     // 3. Database Update
      const { error } = await supabase
        .from('users')
-       .update({ 
-          balance: newBal,
-          inventory: newInventory 
-       })
+       .update(updates)
        .eq('id', user.id);
 
      if (error) {
-        // Rollback if failed (Optional, but good practice)
         console.error("Purchase failed", error);
      }
+  };
+  const getRelayTimeLeft = () => {
+     if (!relayExpiry) return null;
+     const now = new Date();
+     const diff = relayExpiry - now;
+     
+     if (diff <= 0) return null; // Expired
+     
+     const hours = Math.floor(diff / (1000 * 60 * 60));
+     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+     return `${hours}h ${mins}m`;
   };
 
   return (
@@ -292,6 +323,15 @@ const handleBuyItem = async (item) => {
                       {locationData ? `NET: ${cityNodeCount} NODES` : 'NET: SCANNING...'}
                     </span>
                  </div>
+               )}
+
+               {/* NEW: CLOUD RELAY TIMER */}
+               {getRelayTimeLeft() && (
+                  <div className="flex items-center space-x-1 px-2 py-0.5 bg-blue-900/30 rounded border border-blue-500/50">
+                     <span className="text-[8px] text-blue-400 font-bold flex items-center">
+                        ☁️ RELAY: {getRelayTimeLeft()}
+                     </span>
+                  </div>
                )}
             </div>
           </div>
