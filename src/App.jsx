@@ -350,13 +350,42 @@ const handleBuyItem = async (item) => {
             </div>
           </div>
 
-          {/* RIGHT: BALANCE */}
-          <div className="text-right">
+          {/* RIGHT: BALANCE & PROGRESS */}
+          <div className="text-right flex flex-col items-end">
             <p className="text-[9px] text-gray-600 uppercase">Points (RP)</p>
-            <p className="text-2xl font-bold tracking-tighter text-white">{balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+            <p className="text-2xl font-bold tracking-tighter text-white">
+              {balance.toLocaleString(undefined, {minimumFractionDigits: 2})}
+            </p>
+            
+            {/* NEW: THE NEXT TIER PROGRESS BAR */}
+            {(() => {
+              // Find the cheapest Tier the user DOES NOT own yet
+              const nextTier = TIERS.find(t => t.id !== 1 && !inventory.includes(`tier_${t.id}`));
+              
+              if (!nextTier) return <p className="text-[8px] text-cyan-400 mt-1 uppercase">MAX TIER REACHED</p>;
+              
+              // Remove the '$' or 'K' from string prices to calculate raw numbers
+              // (Assuming your TIERS array uses numbers for prices now, if not we parse it)
+              const rawPrice = typeof nextTier.price === 'number' ? nextTier.price : parseInt(nextTier.price.toString().replace(/[^0-9]/g, ''));
+              
+              const progress = Math.min(100, (balance / rawPrice) * 100);
+              
+              return (
+                <div className="w-32 mt-1">
+                  <div className="flex justify-between text-[7px] text-gray-500 mb-0.5 uppercase tracking-wider">
+                    <span>Next: {nextTier.name}</span>
+                    <span>{Math.floor(progress)}%</span>
+                  </div>
+                  <div className="w-full h-1 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
+                    <div 
+                      className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 transition-all duration-300" 
+                      style={{ width: `${progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
-        </div>
-      </div>
 
       {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
