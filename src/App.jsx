@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Terminal, Users, Zap, DollarSign, MapPin, Signal, Wallet } from 'lucide-react'
+import { Terminal, Users, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle } from 'lucide-react'
 
 // --- COMPONENTS ---
 import MiningRig from './components/MiningRig'
@@ -48,6 +48,7 @@ function App() {
   const [referralCount, setReferralCount] = useState(0);
   const [inventory, setInventory] = useState([]); // Stores ['tier_2', 'cloud_relay', etc.]
   const [relayExpiry, setRelayExpiry] = useState(null); // Timestamp of expiry 
+  const [toast, setToast] = useState(null); // { message: "Access Granted", type: "success" }
 
   // Telemetry State (The "Fog of War" Data)
   const [locationData, setLocationData] = useState(null);
@@ -275,6 +276,15 @@ const handleBuyItem = async (item) => {
         updates.inventory = newInventory;
      }
 
+     if (item.id === 'cloud_relay_1h') {
+        // ... existing logic ...
+        showToast("☁️ CLOUD RELAY ACTIVATED", "success"); // <--- ADD THIS
+     } 
+     else {
+        // ... existing logic ...
+        showToast(`📦 ACQUIRED: ${item.name}`, "success"); // <--- ADD THIS
+     }
+
      // 3. Database Update
      const { error } = await supabase
        .from('users')
@@ -295,6 +305,10 @@ const handleBuyItem = async (item) => {
      const hours = Math.floor(diff / (1000 * 60 * 60));
      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
      return `${hours}h ${mins}m`;
+  };
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000); // Auto-hide after 3s
   };
 
   return (
@@ -431,6 +445,14 @@ const handleBuyItem = async (item) => {
 
              <button onClick={handleInvite} className="w-full py-4 bg-white text-black font-bold tracking-widest hover:bg-cyan-400 transition-colors rounded">INITIATE RECRUITMENT</button>
           </div>
+        </div>
+      )}
+
+      {/* TOAST NOTIFICATION OVERLAY */}
+      {toast && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[100] flex items-center bg-gray-900 border border-cyan-500 text-white px-6 py-3 rounded-full shadow-2xl animate-bounce">
+           {toast.type === 'success' ? <Zap size={16} className="text-cyan-400 mr-2" /> : <AlertTriangle size={16} className="text-red-500 mr-2" />}
+           <span className="text-xs font-bold tracking-widest">{toast.message}</span>
         </div>
       )}
 

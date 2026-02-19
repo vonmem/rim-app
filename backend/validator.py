@@ -47,11 +47,10 @@ async def run_validator():
 
     while True:
         try:
-            # 1. Fetch Users
-            response = supabase.table('users').select("*").execute()
-            users = response.data
+            # 1. Fetch Users (Now including relay_expiry!)
+            users = supabase.table('users').select("*").execute().data
             
-            # 2. Build Referral Map
+            # ... (Referral Logic stays the same) ...
             referral_counts = {}
             for u in users:
                 referrer = u.get('referred_by')
@@ -59,57 +58,71 @@ async def run_validator():
                     referral_counts[referrer] = referral_counts.get(referrer, 0) + 1
 
             active_miners = 0
-            
-            # 3. Process Payouts
             print(f"\n--- TICK START: {datetime.now().strftime('%H:%M:%S')} ---")
             
             for user in users:
                 last_beat_str = user.get('last_heartbeat')
+                relay_expiry_str = user.get('relay_expiry') # Fetch expiry
                 
                 if not last_beat_str:
-                    # print(f"User {user['id']}: No Heartbeat found.")
                     continue
 
+                # --- 1. CHECK STATUS (Offline vs Online) ---
+                is_online = False
+                status_msg = "OFFLINE"
+                
                 try:
-                    # Robust ISO Parsing (Handles 'Z' or '+00:00')
+                    # Parse Heartbeat
                     last_beat_str = last_beat_str.replace('Z', '+00:00')
                     last_beat_time = datetime.fromisoformat(last_beat_str)
-                    
-                    # Ensure we are comparing UTC to UTC
                     now = datetime.now(timezone.utc)
                     seconds_diff = (now - last_beat_time).total_seconds()
                     
-                    # DEBUG LOG: Show the time difference
-                    # print(f"User {user['id']} | Last Seen: {int(seconds_diff)}s ago", end=" ")
-
-                    if seconds_diff > TIMEOUT_SECONDS:
-                        print(f"❌ User {user['id']} | SKIPPED (Offline for {int(seconds_diff)}s)")
-                        continue
-
+                    if seconds_diff <= TIMEOUT_SECONDS:
+                        is_online = True
+                        status_msg = f"ONLINE ({int(seconds_diff)}s lag)"
+                    
                 except Exception as e:
-                    print(f"⚠️ Timestamp Error for {user['id']}: {e}")
+                    print(f"⚠️ Time Error {user['id']}: {e}")
                     continue
 
-                # --- PAYOUT CALCULATION ---
+                # --- 2. CHECK CLOUD RELAY (The "Save" Roll) ---
+                has_active_relay = False
+                if not is_online and relay_expiry_str:
+                    try:
+                        relay_expiry_str = relay_expiry_str.replace('Z', '+00:00')
+                        expiry_time = datetime.fromisoformat(relay_expiry_str)
+                        
+                        if expiry_time > now:
+                            has_active_relay = True
+                            status_msg = "CLOUD RELAY ACTIVE ☁️"
+                            
+                    except Exception as e:
+                        print(f"Relay Error {user['id']}: {e}")
+
+                # --- 3. DECISION: PAY or SKIP ---
+                # Pay if: (User is Online) OR (User has Active Relay)
+                if not is_online and not has_active_relay:
+                    # print(f"❌ User {user['id']} | SKIPPED (Offline {int(seconds_diff)}s)")
+                    continue
+
+                # --- 4. PAYOUT LOGIC (Same as before) ---
                 current_balance = float(user['balance'])
                 multiplier, bandwidth_cap = get_tier_stats(current_balance)
                 
-                # Mining Reward
                 mining_reward = (BASE_RATE * multiplier) * 5 
                 
-                # Referral Reward
                 total_refs = referral_counts.get(user['id'], 0)
                 active_refs = min(total_refs, bandwidth_cap) 
                 referral_reward = active_refs * REFERRAL_BONUS_PER_TICK
                 
                 total_reward = mining_reward + referral_reward
                 
-                # Update DB
                 new_balance = current_balance + total_reward
                 supabase.table('users').update({'balance': new_balance}).eq('id', user['id']).execute()
                 
                 active_miners += 1
-                print(f"✅ User {user['id']} | PAID +{total_reward:.4f} (Seen {int(seconds_diff)}s ago)")
+                print(f"✅ User {user['id']} | PAID +{total_reward:.4f} | Status: {status_msg}")
 
             if active_miners == 0:
                 print("💤 No active miners found.")
