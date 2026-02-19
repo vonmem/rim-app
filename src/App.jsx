@@ -360,7 +360,7 @@ const handleBuyItem = async (item) => {
             {/* NEW: THE NEXT TIER PROGRESS BAR */}
             {(() => {
               // Find the cheapest Tier the user DOES NOT own yet
-              const nextTier = TIERS.find(t => t.id !== 1 && !inventory.includes(`tier_${t.id}`));
+              const nextTier = TIERS.find(t => t.id !== 1 && (!inventory || !inventory.includes(`tier_${t.id}`)));
               
               if (!nextTier) return <p className="text-[8px] text-cyan-400 mt-1 uppercase">MAX TIER REACHED</p>;
               
@@ -387,6 +387,7 @@ const handleBuyItem = async (item) => {
             })()}
           </div>
         </div>
+      </div>
 
       {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
