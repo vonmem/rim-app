@@ -386,6 +386,7 @@ const handleBuyItem = async (item) => {
               );
             })()}
           </div>
+          </div>
 
       {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
