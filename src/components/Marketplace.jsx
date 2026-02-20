@@ -15,12 +15,14 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
     { id: 'botnet_injection', name: 'BOTNET INJECTION', type: 'CONSUMABLE', price: 1000, icon: '🦠', desc: 'Doubles the RP yield from your active referrals for 24 hours.' },
     
     // --- NFT RIGS (TIERS) ---
-    { id: 'tier_2', name: 'HIGH-FLYER NFT', type: 'RIG', price: 1000, icon: '🦇', multiplier: '1.2x' },
-    { id: 'tier_3', name: 'VAMPIRE NFT', type: 'RIG', price: 5000, icon: '🧛', multiplier: '1.5x' },
-    { id: 'tier_4', name: 'DIVER DOLPHIN', type: 'RIG', price: 20000, icon: '🐬', multiplier: '2.0x' },
-    { id: 'tier_5', name: 'SURFER DOLPHIN', type: 'RIG', price: 100000, icon: '🐋', multiplier: '3.0x' },
-    { id: 'tier_6', name: 'SUPER-ALLIANCE', type: 'RIG', price: 500000, icon: '🔱', multiplier: '5.0x' },
-    { id: 'tier_7.1', name: 'APEX MK1', type: 'RIG', price: 1500000, icon: '👁️', multiplier: '10x' },
+    { id: 'tier_2', name: 'HIGH-FLYER NFT', type: 'RIG', price: 1000, icon: '🦇', image: '/pro_bat.png', multiplier: '1.2x' },
+    { id: 'tier_3', name: 'VAMPIRE NFT', type: 'RIG', price: 5000, icon: '🧛', image: '/vampire.png', multiplier: '1.5x' },
+    { id: 'tier_4', name: 'DIVER DOLPHIN', type: 'RIG', price: 20000, icon: '🐬', image: '/diver.png', multiplier: '2.0x' },
+    { id: 'tier_5', name: 'SURFER DOLPHIN', type: 'RIG', price: 100000, icon: '🐋', image: '/surfer.png', multiplier: '3.0x' },
+    { id: 'tier_6', name: 'SUPER-ALLIANCE', type: 'RIG', price: 500000, icon: '🔱', image: '/alliance.png', multiplier: '5.0x' },
+    { id: 'tier_7.1', name: 'APEX MK1', type: 'RIG', price: 1500000, icon: '👁️', image: '/apex1.png', multiplier: '10x' },
+    { id: 'tier_7.2', name: 'APEX MK2', type: 'RIG', price: 5000000, icon: '🌀', image: '/apex2.png', multiplier: '25x' },
+    { id: 'tier_7.3', name: 'GOD EYE', type: 'RIG', price: 20000000, icon: '☀️', image: '/apex3.png', multiplier: '100x' }
   ];
 
   // 1. User Clicks "Buy" -> Open Modal
@@ -82,42 +84,56 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
         </div>
       </div>
 
-      {/* RIGS SECTION */}
+      {/* RIGS SECTION (TRADING CARD GALLERY) */}
       <div>
         <p className="text-[10px] text-gray-500 tracking-widest uppercase mb-3 flex items-center">
             <Shield size={10} className="mr-1"/> NEURAL RIGS (PERMANENT)
         </p>
-        <div className="space-y-3">
-          {ITEMS.filter(i => i.type === 'RIG').map(item => {
-             const isOwned = userInventory.includes(item.id);
+        
+        <div className="grid grid-cols-2 gap-3">
+          {ITEMS.filter(i => i.type === 'RIG').map((item) => {
+             const isOwned = userInventory && userInventory.includes(item.id);
+             const canAfford = balance >= item.price;
+             
              return (
-              <div key={item.id} className={`border p-4 rounded-lg flex justify-between items-center ${isOwned ? 'bg-cyan-900/20 border-cyan-500/50' : 'bg-gray-900 border-gray-800'}`}>
-                 <div className="flex items-center space-x-3">
-                    <div className="text-2xl">{item.icon}</div>
-                    <div>
-                       <p className="text-xs font-bold text-white">{item.name}</p>
-                       <p className="text-[9px] text-cyan-400 font-bold">{item.multiplier} POWER</p>
-                    </div>
+               <div 
+                 key={item.id} 
+                 onClick={() => !isOwned && initiatePurchase(item)}
+                 className={`relative rounded-xl border flex flex-col overflow-hidden transition-all duration-300 ${
+                   isOwned ? 'border-green-500/50 bg-gray-900/50 cursor-default' :
+                   canAfford ? 'border-cyan-500/50 bg-gray-900 cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:-translate-y-1' : 
+                   'border-gray-800 bg-gray-950 cursor-not-allowed opacity-75'
+                 }`}
+               >
+                 {/* Image Section */}
+                 <div className="h-28 w-full bg-black relative flex items-center justify-center p-2">
+                   <div className={`absolute inset-0 blur-xl opacity-30 ${isOwned ? 'bg-green-500' : 'bg-cyan-500'}`}></div>
+                   {/* Make sure item.image exists in your ITEMS array! */}
+                   <img src={item.image} alt={item.name} className="h-full object-contain z-10 drop-shadow-lg" />
                  </div>
-                 
-                 {isOwned ? (
-                    <span className="text-[10px] font-bold text-cyan-400 flex items-center">
-                       <Shield size={10} className="mr-1"/> OWNED
-                    </span>
-                 ) : (
-                    <button 
-                       onClick={() => initiatePurchase(item)}
-                       disabled={balance < item.price}
-                       className={`px-4 py-2 text-[10px] font-bold rounded transition-colors ${
-                         balance >= item.price 
-                         ? 'bg-white text-black hover:bg-cyan-400' 
-                         : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                       }`}
-                    >
-                       MINT {item.price}
-                    </button>
+
+                 {/* Text Overlay Section */}
+                 <div className="p-3 bg-gradient-to-t from-black to-transparent border-t border-gray-800/50">
+                   <h3 className="text-[10px] font-black text-white tracking-widest uppercase mb-1 truncate">{item.name}</h3>
+                   <div className="flex justify-between items-center">
+                     <span className="text-[9px] text-cyan-400 font-bold border border-cyan-900 bg-cyan-950/50 px-1.5 py-0.5 rounded">
+                       {item.multiplier}
+                     </span>
+                     <span className="text-[9px] text-yellow-500 font-mono tracking-tighter">
+                       {item.price.toLocaleString()} RP
+                     </span>
+                   </div>
+                 </div>
+
+                 {/* Owned / Lock Overlay */}
+                 {isOwned && (
+                   <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-20">
+                     <span className="text-[10px] text-green-400 font-black tracking-[0.2em] border border-green-500 px-3 py-1 rounded bg-green-900/40 transform -rotate-12 shadow-xl">
+                       OWNED
+                     </span>
+                   </div>
                  )}
-              </div>
+               </div>
              );
           })}
         </div>

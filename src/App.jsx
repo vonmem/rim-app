@@ -23,15 +23,15 @@ const REFERRAL_RATE_PER_TICK = 0.003;
 
 // --- THE SEVEN SAGES HIERARCHY ---
 const TIERS = [
-  { id: 1, name: 'SCOUT', threshold: 0, color: '#9CA3AF', multiplier: 1.0, icon: '🦇', supply: '∞', price: 'FREE', type: 'COMMON', bandwidth: 10 },
-  { id: 2, name: 'HIGH-FLYER', threshold: 1000, color: '#D1D5DB', multiplier: 1.2, icon: '🦇', supply: '∞', price: '$20', type: 'UNCOMMON', bandwidth: 25 },
-  { id: 3, name: 'VAMPIRE', threshold: 5000, color: '#EF4444', multiplier: 1.5, icon: '🧛', supply: '6,000', price: '$99', type: 'RARE', bandwidth: 50 },
-  { id: 4, name: 'DIVER DOLPHIN', threshold: 20000, color: '#3B82F6', multiplier: 2.0, icon: '🐬', supply: '2,000', price: '$499', type: 'RARE', bandwidth: 100 },
-  { id: 5, name: 'SURFER DOLPHIN', threshold: 100000, color: '#8B5CF6', multiplier: 3.0, icon: '🐋', supply: '600', price: '$1,499', type: 'EPIC', bandwidth: 250 },
-  { id: 6, name: 'SUPER-ALLIANCE', threshold: 500000, color: '#FCD34D', multiplier: 5.0, icon: '🔱', supply: '200', price: '$4,999', type: 'LEGENDARY', bandwidth: 500 },
-  { id: 7.1, name: 'APEX MK1', threshold: 1500000, color: '#F59E0B', multiplier: 10.0, icon: '👁️', supply: '60', price: '$15K', type: 'MYTHIC', bandwidth: 1000 },
-  { id: 7.2, name: 'APEX MK2', threshold: 5000000, color: '#DC2626', multiplier: 25.0, icon: '👁️', supply: '20', price: '$50K', type: 'MYTHIC', bandwidth: 1000 },
-  { id: 7.3, name: 'APEX MK3 GOD EYE', threshold: 20000000, color: '#FFFFFF', multiplier: 100.0, icon: '🧿', supply: '8', price: 'AUCTION', type: 'ARTIFACT', bandwidth: 1000 },
+  { id: 1, name: 'SCOUT', type: 'FREE', threshold: 0, multiplier: 1.0, bandwidth: 10, color: '#3b82f6', icon: '🦇', image: '/scout.png' },
+  { id: 2, name: 'PRO BAT', type: 'RIG', threshold: 1000, multiplier: 1.2, bandwidth: 20, color: '#8b5cf6', icon: '🦇', image: '/pro_bat.png' },
+  { id: 3, name: 'VAMPIRE', type: 'RIG', threshold: 5000, multiplier: 1.5, bandwidth: 50, color: '#ef4444', icon: '🧛', image: '/vampire.png' },
+  { id: 4, name: 'DIVER', type: 'RIG', threshold: 20000, multiplier: 2.0, bandwidth: 200, color: '#06b6d4', icon: '🐬', image: '/diver.png' },
+  { id: 5, name: 'SURFER', type: 'RIG', threshold: 100000, multiplier: 3.0, bandwidth: 1000, color: '#f59e0b', icon: '🐋', image: '/surfer.png' },
+  { id: 6, name: 'ALLIANCE', type: 'RIG', threshold: 500000, multiplier: 5.0, bandwidth: 5000, color: '#10b981', icon: '🔱', image: '/alliance.png' },
+  { id: 7.1, name: 'APEX MK1', type: 'GOD', threshold: 1500000, multiplier: 10.0, bandwidth: 10000, color: '#f43f5e', icon: '👁️', image: '/apex1.png' },
+  { id: 7.2, name: 'APEX MK2', type: 'GOD', threshold: 5000000, multiplier: 25.0, bandwidth: 25000, color: '#d946ef', icon: '🌀', image: '/apex2.png' },
+  { id: 7.3, name: 'GOD EYE', type: 'GOD', threshold: 20000000, multiplier: 100.0, bandwidth: 100000, color: '#fbbf24', icon: '☀️', image: '/apex3.png' }
 ];
 
 const supabase = createClient(
@@ -465,6 +465,18 @@ const handleBuyItem = (item) => {
       {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
         
+        {/* Custom CSS for the smooth breathing/floating animation */}
+        <style>{`
+          @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-12px); }
+            100% { transform: translateY(0px); }
+          }
+          .animate-float {
+            animation: float 3s ease-in-out infinite;
+          }
+        `}</style>
+
         {tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
@@ -484,6 +496,7 @@ const handleBuyItem = (item) => {
            />
         ) : (
            <>
+              {/* GOD MODE STABILITY BAR */}
               {currentTier.id === 7.3 && (
                 <div className="absolute top-4 w-full px-12 z-20">
                    <div className="flex justify-between text-[8px] font-bold tracking-widest mb-1">
@@ -498,13 +511,43 @@ const handleBuyItem = (item) => {
                 </div>
               )}
 
-              <MiningRig 
-                 status={status} 
-                 currentTier={currentTier} 
-                 isOverheated={isOverheated} 
-                 toggleMining={toggleMining} 
-              />
+              {/* THE NEW FLOATING MINING RIG (Replaces the old <MiningRig /> tag) */}
+              <div 
+                className="flex flex-col items-center justify-center relative cursor-pointer w-full max-w-sm mt-8 mb-4" 
+                onClick={toggleMining}
+              >
+                {/* BACKGROUND GLOW */}
+                <div className={`absolute w-72 h-72 rounded-full blur-[80px] transition-all duration-1000 ${
+                  isOverheated ? 'bg-red-600/40' : 
+                  status === 'MINING' ? 'bg-cyan-500/30' : 'bg-gray-800/20'
+                }`}></div>
 
+                {/* THE 3D NFT IMAGE */}
+                <div className="relative w-64 h-64 z-10 flex items-center justify-center">
+                   <img 
+                      src={currentTier.image} 
+                      alt={currentTier.name}
+                      className={`w-full h-full object-contain transition-all duration-1000 ${
+                        isOverheated ? 'brightness-50 sepia-[.8] hue-rotate-[-50deg] animate-pulse drop-shadow-[0_0_25px_rgba(220,38,38,0.8)]' :
+                        status === 'MINING' ? 'animate-float drop-shadow-[0_0_25px_rgba(34,211,238,0.5)]' : 
+                        'translate-y-0 grayscale-[0.6] opacity-70 drop-shadow-[0_0_15px_rgba(0,0,0,0.8)]'
+                      }`}
+                   />
+                </div>
+
+                {/* STATUS BADGE */}
+                <div className="mt-8 z-20">
+                   <span className={`px-5 py-2 rounded-full text-[11px] font-black tracking-[0.2em] border transition-colors duration-500 ${
+                      isOverheated ? 'bg-red-900/50 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.4)]' :
+                      status === 'MINING' ? 'bg-cyan-900/50 border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 
+                      'bg-gray-900 border-gray-700 text-gray-500'
+                   }`}>
+                      {isOverheated ? 'SYSTEM LOCKDOWN' : status === 'MINING' ? 'UPLINK ACTIVE' : 'SYSTEM OFFLINE'}
+                   </span>
+                </div>
+              </div>
+
+              {/* STATS PANEL */}
               <StatsPanel 
                  status={status}
                  isOverheated={isOverheated}
