@@ -346,57 +346,61 @@ const handleBuyItem = (item) => {
       
       {/* HEADER WITH SIGNAL MAP INDICATOR */}
       <div className="p-4 border-b border-gray-900 bg-black/80 backdrop-blur-xl z-50">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-start">
           
-          {/* LEFT: TIER INFO */}
-          <div>
+          {/* LEFT: TIER INFO & BUFFS */}
+          <div className="flex flex-col">
             <div className="flex items-center space-x-2">
               <span className="text-xl">{currentTier.icon}</span>
               <h1 className="text-sm font-black tracking-[0.2em] uppercase" style={{ color: currentTier.color }}>
                 {currentTier.name}
               </h1>
             </div>
-            <div className="flex items-center space-x-2 mt-1">
-               <span className="text-[9px] text-gray-500 tracking-widest uppercase">{currentTier.type} CLASS</span>
-               
-               {/* THE FOG OF WAR INDICATOR */}
-            {status === 'MINING' && (
-              <div className="flex items-center space-x-1 px-2 py-0.5 bg-gray-900 rounded border border-gray-800 animate-pulse mt-1">
-                 <Signal size={8} className={signalStrength === 'STRONG' ? 'text-green-500' : 'text-yellow-500'} />
-                 <span className="text-[8px] text-gray-400">
-                   {locationData ? `NET: ${cityNodeCount} NODES` : 'NET: SCANNING...'}
-                 </span>
-              </div>
-            )}
+            
+            <div className="flex flex-col mt-1 space-y-2">
+               <div className="flex items-center space-x-2">
+                 <span className="text-[9px] text-gray-500 tracking-widest uppercase">{currentTier.type} CLASS</span>
+                 
+                 {/* THE FOG OF WAR INDICATOR */}
+                 {status === 'MINING' && (
+                   <div className="flex items-center space-x-1 px-2 py-0.5 bg-gray-900 rounded border border-gray-800 animate-pulse">
+                      <Signal size={8} className={signalStrength === 'STRONG' ? 'text-green-500' : 'text-yellow-500'} />
+                      <span className="text-[8px] text-gray-400">
+                        {locationData ? `NET: ${cityNodeCount} NODES` : 'NET: SCANNING...'}
+                      </span>
+                   </div>
+                 )}
+               </div>
 
-            {/* --- NEW: ACTIVE BUFFS / TIMERS --- */}
-            <div className="flex flex-col space-y-1 mt-2">
-               {/* 1. Cloud Relay Timer */}
-               {getTimeLeft(relayExpiry) && (
-                  <div className="flex items-center space-x-1 px-2 py-0.5 bg-blue-900/30 rounded border border-blue-500/50 w-max">
-                     <span className="text-[8px] text-blue-400 font-bold tracking-wider">
-                        ☁️ RELAY: {getTimeLeft(relayExpiry)}
-                     </span>
-                  </div>
-               )}
-               
-               {/* 2. Signal Booster Timer */}
-               {getTimeLeft(boosterExpiry) && (
-                  <div className="flex items-center space-x-1 px-2 py-0.5 bg-orange-900/30 rounded border border-orange-500/50 w-max animate-pulse">
-                     <span className="text-[8px] text-orange-400 font-bold tracking-wider">
-                        📡 BOOSTER: {getTimeLeft(boosterExpiry)}
-                     </span>
-                  </div>
-               )}
+               {/* --- ACTIVE BUFFS / TIMERS --- */}
+               <div className="flex flex-col space-y-1">
+                  {/* 1. Cloud Relay Timer */}
+                  {getTimeLeft(relayExpiry) && (
+                     <div className="flex items-center space-x-1 px-2 py-0.5 bg-blue-900/30 rounded border border-blue-500/50 w-max">
+                        <span className="text-[8px] text-blue-400 font-bold tracking-wider">
+                           ☁️ RELAY: {getTimeLeft(relayExpiry)}
+                        </span>
+                     </div>
+                  )}
+                  
+                  {/* 2. Signal Booster Timer */}
+                  {getTimeLeft(boosterExpiry) && (
+                     <div className="flex items-center space-x-1 px-2 py-0.5 bg-orange-900/30 rounded border border-orange-500/50 w-max animate-pulse">
+                        <span className="text-[8px] text-orange-400 font-bold tracking-wider">
+                           📡 BOOSTER: {getTimeLeft(boosterExpiry)}
+                        </span>
+                     </div>
+                  )}
 
-               {/* 3. Botnet Injection Timer */}
-               {getTimeLeft(botnetExpiry) && (
-                  <div className="flex items-center space-x-1 px-2 py-0.5 bg-purple-900/30 rounded border border-purple-500/50 w-max">
-                     <span className="text-[8px] text-purple-400 font-bold tracking-wider">
-                        🦠 BOTNET: {getTimeLeft(botnetExpiry)}
-                     </span>
-                  </div>
-               )}
+                  {/* 3. Botnet Injection Timer */}
+                  {getTimeLeft(botnetExpiry) && (
+                     <div className="flex items-center space-x-1 px-2 py-0.5 bg-purple-900/30 rounded border border-purple-500/50 w-max">
+                        <span className="text-[8px] text-purple-400 font-bold tracking-wider">
+                           🦠 BOTNET: {getTimeLeft(botnetExpiry)}
+                        </span>
+                     </div>
+                  )}
+               </div>
             </div>
           </div>
 
@@ -407,17 +411,13 @@ const handleBuyItem = (item) => {
               {balance.toLocaleString(undefined, {minimumFractionDigits: 2})}
             </p>
             
-            {/* NEW: THE NEXT TIER PROGRESS BAR */}
+            {/* THE NEXT TIER PROGRESS BAR */}
             {(() => {
-              // Find the cheapest Tier the user DOES NOT own yet
               const nextTier = TIERS.find(t => t.id !== 1 && (!inventory || !inventory.includes(`tier_${t.id}`)));
               
               if (!nextTier) return <p className="text-[8px] text-cyan-400 mt-1 uppercase">MAX TIER REACHED</p>;
               
-              // Remove the '$' or 'K' from string prices to calculate raw numbers
-              // (Assuming your TIERS array uses numbers for prices now, if not we parse it)
               const rawPrice = typeof nextTier.price === 'number' ? nextTier.price : parseInt(nextTier.price.toString().replace(/[^0-9]/g, ''));
-              
               const progress = Math.min(100, (balance / rawPrice) * 100);
               
               return (
