@@ -71,10 +71,23 @@ function App() {
   const [godModeElapsed, setGodModeElapsed] = useState(0);
   const [isOverheated, setIsOverheated] = useState(false);
 
-  // Refs
-  const balanceRef = useRef(0);
+  // --- REFS ---
+  const balanceRef = useRef(balance);
   const godModeRef = useRef(0);
   const miningInterval = useRef(null);
+  
+  // NEW: Refs for instant interval updates
+  const boosterRef = useRef(boosterExpiry);
+  const botnetRef = useRef(botnetExpiry);
+
+  // Keep the Refs perfectly in sync with the State
+  useEffect(() => {
+    boosterRef.current = boosterExpiry;
+  }, [boosterExpiry]);
+
+  useEffect(() => {
+    botnetRef.current = botnetExpiry;
+  }, [botnetExpiry]);
 
   // Calculate Tier based on OWNED ITEMS, not Balance
   const currentTier = [...TIERS].reverse().find(t => 
@@ -240,17 +253,16 @@ function App() {
            }
         }
 
-        // 2. 📡 APPLY SIGNAL BOOSTER (+20% Mining Speed)
-        // If the booster timer is still active, multiply the currentMult by 1.2
-        if (boosterExpiry && boosterExpiry > now) {
+        // 2. 📡 APPLY SIGNAL BOOSTER INSTANTLY (+20%)
+        if (boosterRef.current && boosterRef.current > now) {
             currentMult *= 1.2;
         }
 
         const miningEarned = (BASE_MINING_RATE * currentMult * loadFactor * HALVING_MULTIPLIER) / 10;
         
-        // 3. 🦠 APPLY BOTNET INJECTION (2x Referral Yield)
+        // 3. 🦠 APPLY BOTNET INJECTION INSTANTLY (2x Yield)
         let refMult = 1.0;
-        if (botnetExpiry && botnetExpiry > now) {
+        if (botnetRef.current && botnetRef.current > now) {
             refMult = 2.0;
         }
 
