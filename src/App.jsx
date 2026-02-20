@@ -387,7 +387,7 @@ const handleBuyItem = (item) => {
                  {/* THE FOG OF WAR INDICATOR */}
                  {status === 'MINING' && (
                    <div className="flex items-center space-x-1 px-2 py-0.5 bg-gray-900 rounded border border-gray-800 animate-pulse">
-                      <Signal size={8} className={signalStrength === 'STRONG' ? 'text-green-500' : 'text-yellow-500'} />
+                      <Signal size={8} className="text-green-500" />
                       <span className="text-[8px] text-gray-400">
                         {locationData ? `NET: ${cityNodeCount} NODES` : 'NET: SCANNING...'}
                       </span>
@@ -397,7 +397,6 @@ const handleBuyItem = (item) => {
 
                {/* --- ACTIVE BUFFS / TIMERS --- */}
                <div className="flex flex-col space-y-1">
-                  {/* 1. Cloud Relay Timer */}
                   {getTimeLeft(relayExpiry) && (
                      <div className="flex items-center space-x-1 px-2 py-0.5 bg-blue-900/30 rounded border border-blue-500/50 w-max">
                         <span className="text-[8px] text-blue-400 font-bold tracking-wider">
@@ -405,8 +404,6 @@ const handleBuyItem = (item) => {
                         </span>
                      </div>
                   )}
-                  
-                  {/* 2. Signal Booster Timer */}
                   {getTimeLeft(boosterExpiry) && (
                      <div className="flex items-center space-x-1 px-2 py-0.5 bg-orange-900/30 rounded border border-orange-500/50 w-max animate-pulse">
                         <span className="text-[8px] text-orange-400 font-bold tracking-wider">
@@ -414,8 +411,6 @@ const handleBuyItem = (item) => {
                         </span>
                      </div>
                   )}
-
-                  {/* 3. Botnet Injection Timer */}
                   {getTimeLeft(botnetExpiry) && (
                      <div className="flex items-center space-x-1 px-2 py-0.5 bg-purple-900/30 rounded border border-purple-500/50 w-max">
                         <span className="text-[8px] text-purple-400 font-bold tracking-wider">
@@ -436,12 +431,11 @@ const handleBuyItem = (item) => {
             
             {/* THE NEXT TIER PROGRESS BAR */}
             {(() => {
-              // Find the next tier they don't own yet
               const nextTier = TIERS.find(t => t.id !== 1 && (!inventory || !inventory.includes(`tier_${t.id}`)));
               
               if (!nextTier) return <p className="text-[8px] text-cyan-400 mt-1 uppercase">MAX TIER REACHED</p>;
               
-              // FIX: We use nextTier.threshold here instead of nextTier.price!
+              // FIX: threshold instead of price!
               const rawPrice = typeof nextTier.threshold === 'number' ? nextTier.threshold : parseInt(nextTier.threshold.toString().replace(/[^0-9]/g, ''));
               const progress = Math.min(100, (balance / rawPrice) * 100);
               
@@ -460,6 +454,10 @@ const handleBuyItem = (item) => {
                 </div>
               );
             })()}
+          </div>
+
+        </div>
+      </div>
 
       {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
