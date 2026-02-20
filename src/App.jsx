@@ -197,14 +197,25 @@ function App() {
 
   // --- 3. HEARTBEAT & SYNC LOOP (The "Proof of Life") ---
   useEffect(() => {
-    // A. Heartbeat (Send "I am alive" to server)
+    // A. Heartbeat (Send "I am alive" & Active Buffs to server)
     const beater = setInterval(async () => {
       if (status === 'MINING' && user) {
-        // FIX: Create the timestamp INSIDE the interval so it is always fresh
+        // Create the timestamp INSIDE the interval so it is always fresh
         const now = new Date().toISOString();
         
-        // Fire and forget - update the timestamp
-        await supabase.from('users').update({ last_heartbeat: now }).eq('id', user.id);
+        // Pull timers directly from localStorage to ensure 100% accuracy, 
+        // avoiding React closure traps in the setInterval
+        const currentRelay = parseInt(localStorage.getItem('relayExpiry')) || null;
+        const currentBooster = parseInt(localStorage.getItem('boosterExpiry')) || null;
+        const currentBotnet = parseInt(localStorage.getItem('botnetExpiry')) || null;
+
+        // Fire and forget - update the timestamp AND the Black Market timers
+        await supabase.from('users').update({ 
+          last_heartbeat: now,
+          relay_expiry: currentRelay,
+          booster_expiry: currentBooster,
+          botnet_expiry: currentBotnet
+        }).eq('id', user.id);
       }
     }, 10000); // Ping every 10 seconds
 
@@ -213,7 +224,7 @@ function App() {
       if (user) {
         const { data } = await supabase.from('users').select('balance').eq('id', user.id).single();
         if (data) {
-          // If our local visual balance is wildly different (>5% diff), snap to server balance
+          // If our local visual balance is wildly different (>50 diff), snap to server balance
           if (Math.abs(balanceRef.current - data.balance) > 50) {
              console.log("Syncing with Validator...");
              setBalance(data.balance);

@@ -41,16 +41,37 @@ def get_tier_stats(balance):
             return t['mult'], t['cap']
     return 1.0, 10
 
+# Helper function to check if a timer is still active (handles both milliseconds and ISO strings)
+def is_buff_active(expiry_val):
+    if not expiry_val: 
+        return False
+    try:
+        now_ms = time.time() * 1000
+        # If it's a millisecond integer (from React Date.now())
+        if isinstance(expiry_val, (int, float)):
+            return expiry_val > now_ms
+        # If it's a string from the DB
+        if isinstance(expiry_val, str):
+            if expiry_val.isdigit():
+                return int(expiry_val) > now_ms
+            # Fallback for ISO format
+            expiry_str = expiry_val.replace('Z', '+00:00')
+            expiry_time = datetime.fromisoformat(expiry_str)
+            return expiry_time > datetime.now(timezone.utc)
+    except Exception as e:
+        return False
+    return False
+
 async def run_validator():
-    print(f"🛡️  RIM PROTOCOL: DEBUG VALIDATOR ONLINE (Timeout: {TIMEOUT_SECONDS}s)")
+    print(f"🛡️  RIM PROTOCOL: VALIDATOR ONLINE (Timeout: {TIMEOUT_SECONDS}s)")
     print("-------------------------------------------------------")
 
     while True:
         try:
-            # 1. Fetch Users (Now including relay_expiry!)
+            # 1. Fetch Users
             users = supabase.table('users').select("*").execute().data
             
-            # ... (Referral Logic stays the same) ...
+            # 2. Map Referrals
             referral_counts = {}
             for u in users:
                 referrer = u.get('referred_by')
@@ -62,7 +83,11 @@ async def run_validator():
             
             for user in users:
                 last_beat_str = user.get('last_heartbeat')
-                relay_expiry_str = user.get('relay_expiry') # Fetch expiry
+                
+                # Fetch all timers from DB
+                relay_expiry = user.get('relay_expiry')
+                booster_expiry = user.get('booster_expiry')
+                botnet_expiry = user.get('botnet_expiry')
                 
                 if not last_beat_str:
                     continue
@@ -72,57 +97,61 @@ async def run_validator():
                 status_msg = "OFFLINE"
                 
                 try:
-                    # Parse Heartbeat
-                    last_beat_str = last_beat_str.replace('Z', '+00:00')
-                    last_beat_time = datetime.fromisoformat(last_beat_str)
-                    now = datetime.now(timezone.utc)
-                    seconds_diff = (now - last_beat_time).total_seconds()
+                    last_beat_str_clean = last_beat_str.replace('Z', '+00:00')
+                    last_beat_time = datetime.fromisoformat(last_beat_str_clean)
+                    now_dt = datetime.now(timezone.utc)
+                    seconds_diff = (now_dt - last_beat_time).total_seconds()
                     
                     if seconds_diff <= TIMEOUT_SECONDS:
                         is_online = True
                         status_msg = f"ONLINE ({int(seconds_diff)}s lag)"
-                    
                 except Exception as e:
-                    print(f"⚠️ Time Error {user['id']}: {e}")
                     continue
 
-                # --- 2. CHECK CLOUD RELAY (The "Save" Roll) ---
-                has_active_relay = False
-                if not is_online and relay_expiry_str:
-                    try:
-                        relay_expiry_str = relay_expiry_str.replace('Z', '+00:00')
-                        expiry_time = datetime.fromisoformat(relay_expiry_str)
-                        
-                        if expiry_time > now:
-                            has_active_relay = True
-                            status_msg = "CLOUD RELAY ACTIVE ☁️"
-                            
-                    except Exception as e:
-                        print(f"Relay Error {user['id']}: {e}")
+                # --- 2. CHECK ACTIVE BUFFS ---
+                has_active_relay = is_buff_active(relay_expiry)
+                has_active_booster = is_buff_active(booster_expiry)
+                has_active_botnet = is_buff_active(botnet_expiry)
+
+                if not is_online and has_active_relay:
+                    status_msg = "CLOUD RELAY ACTIVE ☁️"
 
                 # --- 3. DECISION: PAY or SKIP ---
-                # Pay if: (User is Online) OR (User has Active Relay)
                 if not is_online and not has_active_relay:
-                    # print(f"❌ User {user['id']} | SKIPPED (Offline {int(seconds_diff)}s)")
                     continue
 
-                # --- 4. PAYOUT LOGIC (Same as before) ---
+                # --- 4. PAYOUT LOGIC ---
                 current_balance = float(user['balance'])
                 multiplier, bandwidth_cap = get_tier_stats(current_balance)
                 
+                # Apply Signal Booster (+20%)
+                if has_active_booster:
+                    multiplier *= 1.2
+                
                 mining_reward = (BASE_RATE * multiplier) * 5 
                 
+                # Apply Botnet Injection (2x Referrals)
                 total_refs = referral_counts.get(user['id'], 0)
                 active_refs = min(total_refs, bandwidth_cap) 
-                referral_reward = active_refs * REFERRAL_BONUS_PER_TICK
+                
+                ref_mult = 2.0 if has_active_botnet else 1.0
+                referral_reward = active_refs * REFERRAL_BONUS_PER_TICK * ref_mult
                 
                 total_reward = mining_reward + referral_reward
                 
+                # 5. Update Database
                 new_balance = current_balance + total_reward
                 supabase.table('users').update({'balance': new_balance}).eq('id', user['id']).execute()
                 
                 active_miners += 1
-                print(f"✅ User {user['id']} | PAID +{total_reward:.4f} | Status: {status_msg}")
+                
+                # Console Output for Debugging
+                buff_tags = []
+                if has_active_booster: buff_tags.append("📡")
+                if has_active_botnet: buff_tags.append("🦠")
+                tag_str = "".join(buff_tags)
+                
+                print(f"✅ User {user['id']} | PAID +{total_reward:.4f} {tag_str} | Status: {status_msg}")
 
             if active_miners == 0:
                 print("💤 No active miners found.")
