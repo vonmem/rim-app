@@ -8,22 +8,12 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
   // Define the Items
   const ITEMS = [
     // --- CONSUMABLES ---
-    { 
-      id: 'cloud_relay_1h', 
-      name: 'CLOUD RELAY (24h)', 
-      type: 'CONSUMABLE', 
-      price: 500, 
-      icon: '☁️', 
-      desc: 'Keeps mining active while app is closed.' 
-    },
-    { 
-      id: 'signal_booster', 
-      name: 'SIGNAL BOOSTER', 
-      type: 'CONSUMABLE', 
-      price: 2000, 
-      icon: '📡', 
-      desc: '+10% Yield for 1 hour.' 
-    },
+    { id: 'cloud_relay_24h', name: 'CLOUD RELAY (24H)', type: 'CONSUMABLE', price: 500, icon: '☁️', desc: 'Maintains 100% mining rate while app is closed for 24 hours.' },
+    { id: 'cloud_relay_3d', name: 'CLOUD RELAY (3 DAYS)', type: 'CONSUMABLE', price: 1350, icon: '🌥️', desc: 'Maintains 100% mining rate while app is closed for 72 hours.' },
+    { id: 'cloud_relay_7d', name: 'HEAVY RELAY (7 DAYS)', type: 'CONSUMABLE', price: 2800, icon: '🌩️', desc: 'Set it and forget it. 168 hours of uninterrupted offline mining.' },
+    { id: 'signal_booster_1h', name: 'SIGNAL BOOSTER (1H)', type: 'CONSUMABLE', price: 200, icon: '📡', desc: '+20% mining speed for 1 hour. Requires active uplink.' },
+    { id: 'botnet_injection', name: 'BOTNET INJECTION', type: 'CONSUMABLE', price: 1000, icon: '🦠', desc: 'Doubles the RP yield from your active referrals for 24 hours.' },
+    
     // --- NFT RIGS (TIERS) ---
     { id: 'tier_2', name: 'HIGH-FLYER NFT', type: 'RIG', price: 1000, icon: '🦇', multiplier: '1.2x' },
     { id: 'tier_3', name: 'VAMPIRE NFT', type: 'RIG', price: 5000, icon: '🧛', multiplier: '1.5x' },

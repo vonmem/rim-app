@@ -40,15 +40,27 @@ const supabase = createClient(
 )
 
 function App() {
-  // --- STATE ---
+// --- STATE ---
   const [tab, setTab] = useState('TERMINAL');
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState(0);
   const [status, setStatus] = useState('IDLE');
   const [referralCount, setReferralCount] = useState(0);
-  const [inventory, setInventory] = useState([]); // Stores ['tier_2', 'cloud_relay', etc.]
-  const [relayExpiry, setRelayExpiry] = useState(null); // Timestamp of expiry 
+  const [inventory, setInventory] = useState([]); // Stores purchased NFTs ['tier_2', etc.]
   const [toast, setToast] = useState(null); // { message: "Access Granted", type: "success" }
+
+  // --- CONSUMABLE TIMERS ---
+  // Using lazy initialization `() =>` safely checks local storage only on the first load
+  const [relayExpiry, setRelayExpiry] = useState(() => parseInt(localStorage.getItem('relayExpiry')) || null);
+  const [boosterExpiry, setBoosterExpiry] = useState(() => parseInt(localStorage.getItem('boosterExpiry')) || null);
+  const [botnetExpiry, setBotnetExpiry] = useState(() => parseInt(localStorage.getItem('botnetExpiry')) || null);
+
+  // Auto-save the timers to the user's phone whenever they change
+  useEffect(() => {
+    if (relayExpiry) localStorage.setItem('relayExpiry', relayExpiry.toString());
+    if (boosterExpiry) localStorage.setItem('boosterExpiry', boosterExpiry.toString());
+    if (botnetExpiry) localStorage.setItem('botnetExpiry', botnetExpiry.toString());
+  }, [relayExpiry, boosterExpiry, botnetExpiry]);
 
   // Telemetry State (The "Fog of War" Data)
   const [locationData, setLocationData] = useState(null);
@@ -214,8 +226,10 @@ function App() {
       setStatus('MINING');
       
       miningInterval.current = setInterval(() => {
+        const now = Date.now();
         const loadFactor = (Math.random() * 0.2) + 0.8; 
         
+        // 1. Base Multiplier & God Mode Logic
         let currentMult = currentTier.multiplier;
         if (currentTier.id === 7.3) {
            godModeRef.current += 0.1;
@@ -226,8 +240,23 @@ function App() {
            }
         }
 
+        // 2. 📡 APPLY SIGNAL BOOSTER (+20% Mining Speed)
+        // If the booster timer is still active, multiply the currentMult by 1.2
+        if (boosterExpiry && boosterExpiry > now) {
+            currentMult *= 1.2;
+        }
+
         const miningEarned = (BASE_MINING_RATE * currentMult * loadFactor * HALVING_MULTIPLIER) / 10;
-        const referralEarned = (activeReferrals * REFERRAL_RATE_PER_TICK);
+        
+        // 3. 🦠 APPLY BOTNET INJECTION (2x Referral Yield)
+        let refMult = 1.0;
+        if (botnetExpiry && botnetExpiry > now) {
+            refMult = 2.0;
+        }
+
+        const referralEarned = (activeReferrals * REFERRAL_RATE_PER_TICK * refMult);
+        
+        // 4. Final Math
         const totalEarned = miningEarned + referralEarned;
 
         const newBal = parseFloat((balanceRef.current + totalEarned).toFixed(3));
@@ -246,65 +275,66 @@ function App() {
     window.open(url, '_blank');
   };
 
-const handleBuyItem = async (item) => {
-     if (balanceRef.current < item.price) return;
-
-     // 1. Calculate Costs
-     const newBal = balanceRef.current - item.price;
-     setBalance(newBal);
-     balanceRef.current = newBal;
-
-     // 2. Handle Special Items (Consumables)
-     let updates = { balance: newBal };
-     let newInventory = [...inventory];
-
-     if (item.id === 'cloud_relay_1h') {
-        // ACTIVATE IMMEDIATELY: Set expiry to 24 hours from now
-        const now = new Date();
-        const expiry = new Date(now.getTime() + (24 * 60 * 60 * 1000)); // 24 Hours
-        
-        updates.relay_expiry = expiry.toISOString();
-        setRelayExpiry(expiry); // Update local state (We will create this state next)
-        
-        // Don't add to inventory list if it's consumed immediately, 
-        // OR add it if you want a history. Let's keep it out of inventory to avoid duplicates.
-     } 
-     else {
-        // Standard Items (NFTs)
-        newInventory = [...inventory, item.id];
-        setInventory(newInventory);
-        updates.inventory = newInventory;
-     }
-
-     if (item.id === 'cloud_relay_1h') {
-        // ... existing logic ...
-        showToast("☁️ CLOUD RELAY ACTIVATED", "success"); // <--- ADD THIS
-     } 
-     else {
-        // ... existing logic ...
-        showToast(`📦 ACQUIRED: ${item.name}`, "success"); // <--- ADD THIS
-     }
-
-     // 3. Database Update
-     const { error } = await supabase
-       .from('users')
-       .update(updates)
-       .eq('id', user.id);
-
-     if (error) {
-        console.error("Purchase failed", error);
-     }
+  // --- TIMER HELPER ---
+  const getTimeLeft = (expiryTime) => {
+    if (!expiryTime) return null; // Timer not active
+    const remaining = expiryTime - Date.now();
+    if (remaining <= 0) return null; // Timer expired
+    
+    const h = Math.floor(remaining / (1000 * 60 * 60));
+    const m = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    return `${h}h ${m}m`;
   };
-  const getRelayTimeLeft = () => {
-     if (!relayExpiry) return null;
-     const now = new Date();
-     const diff = relayExpiry - now;
-     
-     if (diff <= 0) return null; // Expired
-     
-     const hours = Math.floor(diff / (1000 * 60 * 60));
-     const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-     return `${hours}h ${mins}m`;
+
+const handleBuyItem = (item) => {
+    // 1. Check if they have enough balance
+    if (balance < item.price) {
+      showToast("⚠️ INSUFFICIENT RP BITS. KEEP MINING.", "error");
+      return;
+    }
+
+    const now = Date.now();
+    const HOUR = 60 * 60 * 1000;
+    const DAY = 24 * HOUR;
+
+    // 2. Handle Consumables (Time Math & Stacking)
+    if (item.type === 'CONSUMABLE') {
+      // Deduct the points immediately
+      setBalance(prev => prev - item.price);
+
+      if (item.id === 'cloud_relay_24h') {
+        setRelayExpiry(prev => Math.max(now, prev || 0) + DAY);
+        showToast("✅ CLOUD RELAY (24H) ACTIVATED. Offline mining secured.", "success");
+        
+      } else if (item.id === 'cloud_relay_3d') {
+        setRelayExpiry(prev => Math.max(now, prev || 0) + (3 * DAY));
+        showToast("✅ CLOUD RELAY (3 DAYS) ACTIVATED. Offline mining secured.", "success");
+        
+      } else if (item.id === 'cloud_relay_7d') {
+        setRelayExpiry(prev => Math.max(now, prev || 0) + (7 * DAY));
+        showToast("✅ HEAVY RELAY ACTIVATED. 7 Days of offline secured.", "success");
+        
+      } else if (item.id === 'signal_booster_1h') {
+        setBoosterExpiry(prev => Math.max(now, prev || 0) + HOUR);
+        showToast("📡 SIGNAL BOOSTER ONLINE. +20% Mining Speed for 1 Hour!", "success");
+        
+      } else if (item.id === 'botnet_injection') {
+        setBotnetExpiry(prev => Math.max(now, prev || 0) + DAY);
+        showToast("🦠 BOTNET INJECTION DEPLOYED. 2x Referral Yield for 24h!", "success");
+      }
+    } 
+    // 3. Handle Permanent NFT Rigs
+    else if (item.type === 'RIG') {
+      if (inventory.includes(item.id)) {
+        showToast("⚠️ YOU ALREADY OWN THIS RIG.", "error");
+        return; // Stop the function here so they don't lose RP!
+      }
+      
+      // Deduct the points and add to inventory
+      setBalance(prev => prev - item.price);
+      setInventory(prev => [...prev, item.id]);
+      showToast(`🦇 ${item.name} ACQUIRED! Multiplier Upgraded.`, "success");
+    }
   };
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -330,20 +360,40 @@ const handleBuyItem = async (item) => {
                <span className="text-[9px] text-gray-500 tracking-widest uppercase">{currentTier.type} CLASS</span>
                
                {/* THE FOG OF WAR INDICATOR */}
-               {status === 'MINING' && (
-                 <div className="flex items-center space-x-1 px-2 py-0.5 bg-gray-900 rounded border border-gray-800 animate-pulse">
-                    <Signal size={8} className={signalStrength === 'STRONG' ? 'text-green-500' : 'text-yellow-500'} />
-                    <span className="text-[8px] text-gray-400">
-                      {locationData ? `NET: ${cityNodeCount} NODES` : 'NET: SCANNING...'}
-                    </span>
-                 </div>
+            {status === 'MINING' && (
+              <div className="flex items-center space-x-1 px-2 py-0.5 bg-gray-900 rounded border border-gray-800 animate-pulse mt-1">
+                 <Signal size={8} className={signalStrength === 'STRONG' ? 'text-green-500' : 'text-yellow-500'} />
+                 <span className="text-[8px] text-gray-400">
+                   {locationData ? `NET: ${cityNodeCount} NODES` : 'NET: SCANNING...'}
+                 </span>
+              </div>
+            )}
+
+            {/* --- NEW: ACTIVE BUFFS / TIMERS --- */}
+            <div className="flex flex-col space-y-1 mt-2">
+               {/* 1. Cloud Relay Timer */}
+               {getTimeLeft(relayExpiry) && (
+                  <div className="flex items-center space-x-1 px-2 py-0.5 bg-blue-900/30 rounded border border-blue-500/50 w-max">
+                     <span className="text-[8px] text-blue-400 font-bold tracking-wider">
+                        ☁️ RELAY: {getTimeLeft(relayExpiry)}
+                     </span>
+                  </div>
+               )}
+               
+               {/* 2. Signal Booster Timer */}
+               {getTimeLeft(boosterExpiry) && (
+                  <div className="flex items-center space-x-1 px-2 py-0.5 bg-orange-900/30 rounded border border-orange-500/50 w-max animate-pulse">
+                     <span className="text-[8px] text-orange-400 font-bold tracking-wider">
+                        📡 BOOSTER: {getTimeLeft(boosterExpiry)}
+                     </span>
+                  </div>
                )}
 
-               {/* NEW: CLOUD RELAY TIMER */}
-               {getRelayTimeLeft() && (
-                  <div className="flex items-center space-x-1 px-2 py-0.5 bg-blue-900/30 rounded border border-blue-500/50">
-                     <span className="text-[8px] text-blue-400 font-bold flex items-center">
-                        ☁️ RELAY: {getRelayTimeLeft()}
+               {/* 3. Botnet Injection Timer */}
+               {getTimeLeft(botnetExpiry) && (
+                  <div className="flex items-center space-x-1 px-2 py-0.5 bg-purple-900/30 rounded border border-purple-500/50 w-max">
+                     <span className="text-[8px] text-purple-400 font-bold tracking-wider">
+                        🦠 BOTNET: {getTimeLeft(botnetExpiry)}
                      </span>
                   </div>
                )}
