@@ -521,6 +521,21 @@ function App() {
 
         </div>
       </div>
+      
+      {/* ================= DEV CHEAT BUTTON (DELETE BEFORE LAUNCH) ================= */}
+      <button 
+        onClick={async () => {
+          const newBalance = balanceRef.current + 50000000; // Adds 50 Million RP
+          setBalance(newBalance);
+          balanceRef.current = newBalance;
+          await supabase.from('users').update({ balance: newBalance }).eq('id', user?.id);
+          showToast("💰 50M DEV FUNDS INJECTED", "success");
+        }}
+        className="absolute top-2 left-2 z-[999] bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded border border-red-400 cursor-pointer hover:bg-red-500"
+      >
+        DEV: +50M RP
+      </button>
+      {/* ========================================================================= */}
 
       {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
