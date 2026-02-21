@@ -27,7 +27,11 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
 
   // 1. User Clicks "Buy" -> Open Modal
   const initiatePurchase = (item) => {
-    if (balance < item.price) return;
+    if (balance < item.price) {
+       // If broke, send it straight to App.jsx so it triggers the Red Error Toast!
+       onBuyItem(item); 
+       return;
+    }
     setConfirmItem(item);
   };
 
@@ -36,9 +40,18 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
     if (!confirmItem) return;
 
     setLoadingId(confirmItem.id);
-    await onBuyItem(confirmItem); // Call parent
-    setLoadingId(null);
-    setConfirmItem(null); // Close modal
+    
+    try {
+      // Wait for the atomic database update in App.jsx
+      await onBuyItem(confirmItem); 
+    } catch (error) {
+      console.error("Purchase interrupted:", error);
+    } finally {
+      // The "finally" block is indestructible. 
+      // It guarantees the loading spinner stops and the modal closes, ALWAYS.
+      setLoadingId(null);
+      setConfirmItem(null); 
+    }
   };
 
   return (
