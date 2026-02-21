@@ -332,6 +332,9 @@ const handleBuyItem = (item) => {
       setBalance(prev => prev - item.price);
       balanceRef.current -= item.price;
 
+      // 🚨 NEW: INSTANTLY TELL SUPABASE THE MONEY IS SPENT
+      supabase.from('users').update({ balance: balanceRef.current }).eq('id', user.id);
+
       if (item.id === 'cloud_relay_24h') {
         setRelayExpiry(prev => Math.max(now, prev || 0) + DAY);
         showToast("✅ CLOUD RELAY (24H) ACTIVATED. Offline mining secured.", "success");
@@ -360,10 +363,21 @@ const handleBuyItem = (item) => {
         return; // Stop the function here so they don't lose RP!
       }
       
-      // Deduct the points and add to inventory
+      // 1. Deduct the points locally
       setBalance(prev => prev - item.price);
       balanceRef.current -= item.price;
-      setInventory(prev => [...prev, item.id]);
+      
+      // 2. Create the new inventory list FIRST
+      const newInventory = [...inventory, item.id];
+      setInventory(newInventory); // Update local screen
+      
+      // 3. 🚨 INSTANTLY TELL SUPABASE THE MONEY IS SPENT *AND* THEY OWN THE RIG
+      supabase.from('users').update({ 
+          balance: balanceRef.current,
+          inventory: newInventory // <-- THIS SAVES THE RIG PERMANENTLY!
+      }).eq('id', user.id);
+
+      // 4. Celebrate!
       showToast(`🦇 ${item.name} ACQUIRED! Multiplier Upgraded.`, "success");
     }
   };
