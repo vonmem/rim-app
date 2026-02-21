@@ -203,19 +203,25 @@ function App() {
         // Create the timestamp INSIDE the interval so it is always fresh
         const now = new Date().toISOString();
         
-        // Pull timers directly from localStorage to ensure 100% accuracy, 
-        // avoiding React closure traps in the setInterval
-        const currentRelay = parseInt(localStorage.getItem('relayExpiry')) || null;
+        // 1. Fetch from LocalStorage
+        const relayMs = parseInt(localStorage.getItem('relayExpiry'));
         const currentBooster = parseInt(localStorage.getItem('boosterExpiry')) || null;
         const currentBotnet = parseInt(localStorage.getItem('botnetExpiry')) || null;
 
-        // Fire and forget - update the timestamp AND the Black Market timers
-        await supabase.from('users').update({ 
+        // 2. Format relay_expiry as timestamptz (ISO String) for Supabase
+        const currentRelayFormatted = relayMs ? new Date(relayMs).toISOString() : null;
+
+        // 3. Fire and forget - update the timestamp AND the Black Market timers
+        const { error } = await supabase.from('users').update({ 
           last_heartbeat: now,
-          relay_expiry: currentRelay,
-          booster_expiry: currentBooster,
-          botnet_expiry: currentBotnet
+          relay_expiry: currentRelayFormatted, // Sent as a formatted Date string!
+          booster_expiry: currentBooster,      // Sent as an int8 number!
+          botnet_expiry: currentBotnet         // Sent as an int8 number!
         }).eq('id', user.id);
+
+        if (error) {
+           console.error("🚨 SUPABASE HEARTBEAT ERROR:", error.message);
+        }
       }
     }, 10000); // Ping every 10 seconds
 
@@ -322,8 +328,9 @@ const handleBuyItem = (item) => {
 
     // 2. Handle Consumables (Time Math & Stacking)
     if (item.type === 'CONSUMABLE') {
-      // Deduct the points immediately
+      // Deduct the points from BOTH state and the Ref!
       setBalance(prev => prev - item.price);
+      balanceRef.current -= item.price;
 
       if (item.id === 'cloud_relay_24h') {
         setRelayExpiry(prev => Math.max(now, prev || 0) + DAY);
@@ -355,6 +362,7 @@ const handleBuyItem = (item) => {
       
       // Deduct the points and add to inventory
       setBalance(prev => prev - item.price);
+      balanceRef.current -= item.price;
       setInventory(prev => [...prev, item.id]);
       showToast(`🦇 ${item.name} ACQUIRED! Multiplier Upgraded.`, "success");
     }

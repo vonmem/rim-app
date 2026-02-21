@@ -150,9 +150,10 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
 
       {/* --- CONFIRMATION MODAL --- */}
       {confirmItem && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
+        // FIX: Changed "absolute" to "fixed" and "z-50" to "z-[100]"
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
            <div className="bg-gray-900 border border-cyan-500 rounded-lg p-6 w-full max-w-sm shadow-2xl relative overflow-hidden">
-              
+            
               {/* Scanline Effect */}
               <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/50 animate-pulse"></div>
 
