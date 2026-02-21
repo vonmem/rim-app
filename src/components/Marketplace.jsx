@@ -98,28 +98,34 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
              return (
                <div 
                  key={item.id} 
-                 onClick={() => !isOwned && initiatePurchase(item)}
-                 className={`relative rounded-xl border flex flex-col overflow-hidden transition-all duration-300 ${
-                   isOwned ? 'border-green-500/50 bg-gray-900/50 cursor-default' :
-                   canAfford ? 'border-cyan-500/50 bg-gray-900 cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:-translate-y-1' : 
-                   'border-gray-800 bg-gray-950 cursor-not-allowed opacity-75'
+                 onClick={() => !isOwned && onBuyItem(item)}
+                 // CHANGED: Removed 'border' class here, we'll handle borders on the image/overlay
+                 className={`relative rounded-xl flex flex-col overflow-hidden transition-all duration-300 ${
+                   isOwned ? 'cursor-default' :
+                   canAfford ? 'cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:-translate-y-1' : 
+                   'cursor-not-allowed opacity-75'
                  }`}
                >
-                 {/* Image Section */}
-                 <div className="h-28 w-full bg-black relative flex items-center justify-center p-2">
-                   <div className={`absolute inset-0 blur-xl opacity-30 ${isOwned ? 'bg-green-500' : 'bg-cyan-500'}`}></div>
-                   {/* Make sure item.image exists in your ITEMS array! */}
-                   <img src={item.image} alt={item.name} className="h-full object-contain z-10 drop-shadow-lg" />
+                 {/* Image Section - TALLER PORTRAIT */}
+                 {/* CHANGED: Height increased to h-48 or h-56 for portrait look. Removed padding (p-2). */}
+                 <div className={`h-56 w-full relative ${isOwned ? 'bg-gray-900' : 'bg-black'}`}>
+                   {/* Background Glow */}
+                   <div className={`absolute inset-0 blur-2xl opacity-40 ${isOwned ? 'bg-green-900' : canAfford ? 'bg-cyan-900' : 'bg-gray-900'}`}></div>
+                   
+                   {/* IMAGE - FILLS FRAME */}
+                   {/* CHANGED: object-contain -> object-cover. Added w-full h-full. */}
+                   <img src={item.image} alt={item.name} className="w-full h-full object-cover z-10 relative" />
                  </div>
 
-                 {/* Text Overlay Section */}
-                 <div className="p-3 bg-gradient-to-t from-black to-transparent border-t border-gray-800/50">
+                 {/* Text Overlay Section - FULL WIDTH BOTTOM OVERLAY */}
+                 {/* CHANGED: Added absolute positioning to sit over the bottom of the image */}
+                 <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black via-black/80 to-transparent pt-6 z-20">
                    <h3 className="text-[10px] font-black text-white tracking-widest uppercase mb-1 truncate">{item.name}</h3>
                    <div className="flex justify-between items-center">
-                     <span className="text-[9px] text-cyan-400 font-bold border border-cyan-900 bg-cyan-950/50 px-1.5 py-0.5 rounded">
+                     <span className="text-[9px] text-cyan-400 font-bold border border-cyan-900 bg-cyan-950/80 px-1.5 py-0.5 rounded backdrop-blur-md">
                        {item.multiplier}
                      </span>
-                     <span className="text-[9px] text-yellow-500 font-mono tracking-tighter">
+                     <span className="text-[9px] text-yellow-500 font-mono tracking-tighter font-bold">
                        {item.price.toLocaleString()} RP
                      </span>
                    </div>
@@ -127,12 +133,15 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
 
                  {/* Owned / Lock Overlay */}
                  {isOwned && (
-                   <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-20">
+                   <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-30">
                      <span className="text-[10px] text-green-400 font-black tracking-[0.2em] border border-green-500 px-3 py-1 rounded bg-green-900/40 transform -rotate-12 shadow-xl">
                        OWNED
                      </span>
                    </div>
                  )}
+                 
+                  {/* BORDER OVERLAY - For clean edges */}
+                  <div className={`absolute inset-0 border-2 rounded-xl z-40 pointer-events-none ${isOwned ? 'border-green-500/50' : canAfford ? 'border-cyan-500/50' : 'border-gray-800'}`}></div>
                </div>
              );
           })}

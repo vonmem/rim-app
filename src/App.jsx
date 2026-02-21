@@ -520,10 +520,12 @@ const handleBuyItem = (item) => {
                 }`}></div>
 
                 {/* THE 3D NFT IMAGE */}
-                <div className="relative w-64 h-64 z-10 flex items-center justify-center">
+                {/* CHANGED: Increased size from w-64 h-64 to w-80 h-80 for a bigger presence */}
+                <div className="relative w-80 h-80 z-10 flex items-center justify-center">
                    <img 
                       src={currentTier.image} 
                       alt={currentTier.name}
+                      // Ensure this stays object-contain so the whole character is always visible
                       className={`w-full h-full object-contain transition-all duration-1000 ${
                         isOverheated ? 'brightness-50 sepia-[.8] hue-rotate-[-50deg] animate-pulse drop-shadow-[0_0_25px_rgba(220,38,38,0.8)]' :
                         status === 'MINING' ? 'animate-float drop-shadow-[0_0_25px_rgba(34,211,238,0.5)]' : 
@@ -592,14 +594,6 @@ const handleBuyItem = (item) => {
         </div>
       )}
 
-      {/* TOAST NOTIFICATION OVERLAY */}
-      {toast && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[100] flex items-center bg-gray-900 border border-cyan-500 text-white px-6 py-3 rounded-full shadow-2xl animate-bounce">
-           {toast.type === 'success' ? <Zap size={16} className="text-cyan-400 mr-2" /> : <AlertTriangle size={16} className="text-red-500 mr-2" />}
-           <span className="text-xs font-bold tracking-widest">{toast.message}</span>
-        </div>
-      )}
-
       {/* FOOTER */}
       <div className="grid grid-cols-5 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
         <button onClick={() => setTab('TERMINAL')} className={`p-4 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
@@ -618,8 +612,31 @@ const handleBuyItem = (item) => {
           <Zap size={18} /><span className="text-[8px] mt-1 font-bold">MINT</span>
         </button>
       </div>
+
+      {/* ================= NEW FIXED TOAST NOTIFICATION ================= */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] w-full max-w-xs px-4 pointer-events-none">
+          <div className={`p-4 rounded-lg shadow-2xl border backdrop-blur-xl flex items-center space-x-3 animate-in fade-in slide-in-from-top-4 duration-300 ${
+            toast.type === 'error' 
+              ? 'bg-red-950/90 border-red-500/50 text-red-200' 
+              : 'bg-cyan-950/90 border-cyan-500/50 text-cyan-200'
+          }`}>
+            <div className="text-2xl">
+              {toast.type === 'error' ? '⚠️' : '✅'}
+            </div>
+            <div>
+              <p className="text-[10px] font-bold tracking-widest uppercase mb-0.5">
+                 {toast.type === 'error' ? 'ERROR' : 'CONFIRMED'}
+              </p>
+              <p className="text-xs font-medium">{toast.message}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ================================================================= */}
+
     </div>
-  )
+  );
 }
 
 export default App
