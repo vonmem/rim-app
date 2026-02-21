@@ -315,9 +315,9 @@ function App() {
     return `${h}h ${m}m`;
   };
 
-const handleBuyItem = (item) => {
+  const handleBuyItem = async (item) => {
     // 1. Check if they have enough balance
-    if (balance < item.price) {
+    if (balanceRef.current < item.price) {
       showToast("⚠️ INSUFFICIENT RP BITS. KEEP MINING.", "error");
       return;
     }
@@ -326,64 +326,79 @@ const handleBuyItem = (item) => {
     const HOUR = 60 * 60 * 1000;
     const DAY = 24 * HOUR;
 
-    // 2. Handle Consumables (Time Math & Stacking)
+    // 2. Pre-calculate the new balance (but don't show it visually yet)
+    const newBalance = balanceRef.current - item.price;
+    
+    // This payload will hold EXACTLY what we send to the database
+    let updatePayload = { balance: newBalance };
+
+    // 3. Prepare the data based on what they are buying
     if (item.type === 'CONSUMABLE') {
-      // Deduct the points from BOTH state and the Ref!
-      setBalance(prev => prev - item.price);
-      balanceRef.current -= item.price;
-
-      // 🚨 NEW: INSTANTLY TELL SUPABASE THE MONEY IS SPENT
-      supabase.from('users').update({ balance: balanceRef.current }).eq('id', user.id);
-
       if (item.id === 'cloud_relay_24h') {
-        setRelayExpiry(prev => Math.max(now, prev || 0) + DAY);
-        showToast("✅ CLOUD RELAY (24H) ACTIVATED. Offline mining secured.", "success");
+        const newTime = Math.max(now, relayExpiry || 0) + DAY;
+        setRelayExpiry(newTime);
+        localStorage.setItem('relayExpiry', newTime.toString());
+        updatePayload.relay_expiry = new Date(newTime).toISOString(); // timestamptz format!
         
       } else if (item.id === 'cloud_relay_3d') {
-        setRelayExpiry(prev => Math.max(now, prev || 0) + (3 * DAY));
-        showToast("✅ CLOUD RELAY (3 DAYS) ACTIVATED. Offline mining secured.", "success");
+        const newTime = Math.max(now, relayExpiry || 0) + (3 * DAY);
+        setRelayExpiry(newTime);
+        localStorage.setItem('relayExpiry', newTime.toString());
+        updatePayload.relay_expiry = new Date(newTime).toISOString(); // timestamptz format!
         
       } else if (item.id === 'cloud_relay_7d') {
-        setRelayExpiry(prev => Math.max(now, prev || 0) + (7 * DAY));
-        showToast("✅ HEAVY RELAY ACTIVATED. 7 Days of offline secured.", "success");
+        const newTime = Math.max(now, relayExpiry || 0) + (7 * DAY);
+        setRelayExpiry(newTime);
+        localStorage.setItem('relayExpiry', newTime.toString());
+        updatePayload.relay_expiry = new Date(newTime).toISOString(); // timestamptz format!
         
       } else if (item.id === 'signal_booster_1h') {
-        setBoosterExpiry(prev => Math.max(now, prev || 0) + HOUR);
-        showToast("📡 SIGNAL BOOSTER ONLINE. +20% Mining Speed for 1 Hour!", "success");
+        const newTime = Math.max(now, boosterExpiry || 0) + HOUR;
+        setBoosterExpiry(newTime);
+        localStorage.setItem('boosterExpiry', newTime.toString());
+        updatePayload.booster_expiry = newTime; // int8 format!
         
       } else if (item.id === 'botnet_injection') {
-        setBotnetExpiry(prev => Math.max(now, prev || 0) + DAY);
-        showToast("🦠 BOTNET INJECTION DEPLOYED. 2x Referral Yield for 24h!", "success");
+        const newTime = Math.max(now, botnetExpiry || 0) + DAY;
+        setBotnetExpiry(newTime);
+        localStorage.setItem('botnetExpiry', newTime.toString());
+        updatePayload.botnet_expiry = newTime; // int8 format!
       }
-    } 
-    // 3. Handle Permanent NFT Rigs
-    else if (item.type === 'RIG') {
+      
+    } else if (item.type === 'RIG') {
       if (inventory.includes(item.id)) {
         showToast("⚠️ YOU ALREADY OWN THIS RIG.", "error");
-        return; // Stop the function here so they don't lose RP!
+        return; 
       }
-      
-      // 1. Deduct the points locally
-      setBalance(prev => prev - item.price);
-      balanceRef.current -= item.price;
-      
-      // 2. Create the new inventory list FIRST
       const newInventory = [...inventory, item.id];
-      setInventory(newInventory); // Update local screen
-      
-      // 3. 🚨 INSTANTLY TELL SUPABASE THE MONEY IS SPENT *AND* THEY OWN THE RIG
-      supabase.from('users').update({ 
-          balance: balanceRef.current,
-          inventory: newInventory // <-- THIS SAVES THE RIG PERMANENTLY!
-      }).eq('id', user.id);
-
-      // 4. Celebrate!
-      showToast(`🦇 ${item.name} ACQUIRED! Multiplier Upgraded.`, "success");
+      setInventory(newInventory);
+      updatePayload.inventory = newInventory;
     }
-  };
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000); // Auto-hide after 3s
+
+    // 4. 🚨 THE ATOMIC DATABASE UPDATE 🚨
+    // We send the new balance and the new items to Supabase at the EXACT SAME TIME
+    const { error } = await supabase
+      .from('users')
+      .update(updatePayload)
+      .eq('id', user.id);
+
+    // If Supabase rejects it, we stop everything and keep their money safe.
+    if (error) {
+      console.error("Purchase failed:", error.message);
+      showToast("❌ TRANSACTION FAILED. SERVER ERROR.", "error");
+      return;
+    }
+
+    // 5. ONLY if the database accepts it, we update the visual balance!
+    setBalance(newBalance);
+    balanceRef.current = newBalance;
+
+    // 6. Show the Success Toast
+    if (item.type === 'RIG') {
+      showToast(`🦇 ${item.name} ACQUIRED! Multiplier Upgraded.`, "success");
+    } else {
+      showToast(`✅ ${item.name} ACTIVATED!`, "success");
+    }
   };
 
   return (
