@@ -131,10 +131,23 @@ function App() {
           // NEW: Load their inventory (default to empty array if null)
           setInventory(data.inventory || []); 
           
-          // NEW: Load Relay Expiry
+          // 🚨 RESTORE BLACK MARKET TIMERS FROM DATABASE
           if (data.relay_expiry) {
-             setRelayExpiry(new Date(data.relay_expiry));
-          } 
+             // Convert the database timestamptz string back into milliseconds!
+             const relayMs = new Date(data.relay_expiry).getTime();
+             setRelayExpiry(relayMs);
+             localStorage.setItem('relayExpiry', relayMs.toString());
+          }
+          
+          if (data.booster_expiry) {
+             setBoosterExpiry(data.booster_expiry);
+             localStorage.setItem('boosterExpiry', data.booster_expiry.toString());
+          }
+          
+          if (data.botnet_expiry) {
+             setBotnetExpiry(data.botnet_expiry);
+             localStorage.setItem('botnetExpiry', data.botnet_expiry.toString());
+          }
           
         } else {
           // NEW USER: Create account
@@ -314,6 +327,19 @@ function App() {
     const m = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
     return `${h}h ${m}m`;
   };
+  
+  // ==========================================
+  // INDESTRUCTIBLE TOAST CONTROLLER
+  // ==========================================
+  const showToast = (message, type = 'success') => {
+    console.log("🔥 TOAST FIRED:", message); // Debugging check
+    setToast({ message, type });
+    
+    // Clear the old timer so it doesn't accidentally kill the new toast!
+    if (window.toastTimer) clearTimeout(window.toastTimer);
+    window.toastTimer = setTimeout(() => setToast(null), 3500);
+  };
+  // ==========================================
 
   const handleBuyItem = async (item) => {
     // 1. Check if they have enough balance
@@ -652,18 +678,19 @@ function App() {
 
       {/* ================= NEW FIXED TOAST NOTIFICATION ================= */}
       {toast && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] w-full max-w-xs px-4 pointer-events-none">
-          <div className={`p-4 rounded-lg shadow-2xl border backdrop-blur-xl flex items-center space-x-3 animate-in fade-in slide-in-from-top-4 duration-300 ${
+        // CHANGED: top-4 to top-24 (so it drops below the header) and z-[999]
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-[999] w-full max-w-xs px-4 pointer-events-none">
+          <div className={`p-4 rounded-lg shadow-2xl border backdrop-blur-xl flex items-center space-x-3 transition-all duration-300 ${
             toast.type === 'error' 
-              ? 'bg-red-950/90 border-red-500/50 text-red-200' 
-              : 'bg-cyan-950/90 border-cyan-500/50 text-cyan-200'
+              ? 'bg-red-950/90 border-red-500/50 text-red-200 shadow-[0_0_20px_rgba(239,68,68,0.4)]' 
+              : 'bg-cyan-950/90 border-cyan-500/50 text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,0.4)]'
           }`}>
             <div className="text-2xl">
               {toast.type === 'error' ? '⚠️' : '✅'}
             </div>
             <div>
               <p className="text-[10px] font-bold tracking-widest uppercase mb-0.5">
-                 {toast.type === 'error' ? 'ERROR' : 'CONFIRMED'}
+                 {toast.type === 'error' ? 'SYSTEM ERROR' : 'TRANSACTION CONFIRMED'}
               </p>
               <p className="text-xs font-medium">{toast.message}</p>
             </div>

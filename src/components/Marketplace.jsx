@@ -25,10 +25,10 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
     { id: 'tier_7.3', name: 'GOD EYE', type: 'RIG', price: 20000000, icon: '☀️', image: '/apex3.png', multiplier: '100x' }
   ];
 
-  // 1. User Clicks "Buy" -> Open Modal
+  // 1. User Clicks "Buy" -> Open Modal OR Trigger Error
   const initiatePurchase = (item) => {
     if (balance < item.price) {
-       // If broke, send it straight to App.jsx so it triggers the Red Error Toast!
+       // FORCE the click to reach App.jsx so it triggers the Red Error Toast!
        onBuyItem(item); 
        return;
     }
@@ -111,13 +111,14 @@ const Marketplace = ({ balance, userInventory, onBuyItem }) => {
              return (
                <div 
                  key={item.id} 
-                 onClick={() => !isOwned && onBuyItem(item)}
-                 // CHANGED: Removed 'border' class here, we'll handle borders on the image/overlay
+                 onClick={() => {
+                    // Stop owned clicks, but ALWAYS allow unowned clicks to pass through!
+                    if (isOwned) return;
+                    initiatePurchase(item);
+                 }}
                  className={`relative rounded-xl flex flex-col overflow-hidden transition-all duration-300 ${
-                   isOwned ? 'cursor-default' :
-                   canAfford ? 'cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:-translate-y-1' : 
-                   'cursor-not-allowed opacity-75'
-                 }`}
+                   isOwned ? 'cursor-default' : 'cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:-translate-y-1'
+                 } ${!isOwned && balance < item.price ? 'opacity-75 grayscale' : ''}`}
                >
                  {/* Image Section - TALLER PORTRAIT */}
                  {/* CHANGED: Height increased to h-48 or h-56 for portrait look. Removed padding (p-2). */}
