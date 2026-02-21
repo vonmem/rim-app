@@ -18,7 +18,7 @@ import TelemetryService from './services/TelemetryService'
 // --- CONFIGURATION ---
 const BASE_MINING_RATE = 0.1; 
 const HALVING_MULTIPLIER = 1.0; 
-const GOD_MODE_DAILY_LIMIT = 4 * 60 * 60; 
+const GOD_MODE_DAILY_LIMIT = 10; 
 const REFERRAL_RATE_PER_TICK = 0.003; 
 
 // --- THE SEVEN SAGES HIERARCHY ---
@@ -521,7 +521,7 @@ function App() {
 
         </div>
       </div>
-      
+
       {/* ================= DEV CHEAT BUTTON (DELETE BEFORE LAUNCH) ================= */}
       <button 
         onClick={async () => {
