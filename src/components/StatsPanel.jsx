@@ -42,31 +42,44 @@ const StatsPanel = ({ status, isOverheated, currentTier, effectiveMultiplier, ba
        <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <p className="text-[8px] text-gray-600 uppercase">Hashrate</p>
-            <p className="text-xs font-bold text-cyan-400">{npuLoad} H/s</p>
+            {/* If overheated, Hashrate drops to 0 */}
+            <p className={`text-xs font-bold ${isOverheated ? 'text-red-500' : 'text-cyan-400'}`}>
+               {isOverheated ? '0' : npuLoad} H/s
+            </p>
           </div>
           <div>
             <p className="text-[8px] text-gray-600 uppercase">Yield</p>
-            <p className={`text-xs font-bold ${isOverheated ? 'text-yellow-500' : 'text-green-500'}`}>
-              {status === 'MINING' 
+            {/* If overheated, Yield drops to 0 */}
+            <p className={`text-xs font-bold ${isOverheated ? 'text-red-500' : 'text-green-500'}`}>
+              {status === 'MINING' && !isOverheated
                 ? ((baseRate * effectiveMultiplier) + referralRate).toFixed(2) + '/s' 
-                : '0/s'
+                : '0.00/s'
               }
             </p>
           </div>
        </div>
 
+       {/* 🚨 THE FIX: Replaced the 5x Warning with a System Shutdown Warning */}
        {isOverheated && (
-         <div className="text-[8px] text-red-500 text-center border-t border-gray-800 pt-2 font-bold animate-pulse">
-           MULTIPLIER REDUCED TO 5x
+         <div className="text-[8px] text-red-500 text-center border-t border-gray-800 pt-2 font-black tracking-widest animate-pulse">
+           SYSTEM SHUTDOWN: YIELD HALTED
          </div>
        )}
 
        <div className="space-y-1 border-t border-gray-800 pt-2 mt-2 min-h-[60px]">
-          {logs.map((l, i) => (
-            <div key={i} className="text-[9px] text-gray-500 font-mono tracking-tighter">
-              {'>'} {l}
-            </div>
-          ))}
+          {isOverheated ? (
+             <div className="text-[9px] text-red-900 font-mono tracking-tighter">
+               {'>'} CRITICAL TEMPERATURE REACHED<br/>
+               {'>'} CONNECTION SEVERED<br/>
+               {'>'} AWAITING COOLDOWN CYCLE...
+             </div>
+          ) : (
+            logs.map((l, i) => (
+              <div key={i} className="text-[9px] text-gray-500 font-mono tracking-tighter">
+                {'>'} {l}
+              </div>
+            ))
+          )}
        </div>
     </div>
   );

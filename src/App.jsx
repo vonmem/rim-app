@@ -315,18 +315,34 @@ function App() {
              setStatus('IDLE'); 
              setIsOverheated(true);
              
-             // 🚨 FIX: Only set the timer if one doesn't already exist!
-             setCooldownUntil(prev => {
-                 if (!prev || prev < Date.now()) {
-                     const cooldownTime = Date.now() + (20 * 60 * 60 * 1000); 
-                     // Fire and forget to Supabase
-                     supabase.from('users').update({ cooldown_until: cooldownTime }).eq('id', user?.id);
-                     return cooldownTime;
-                 }
-                 return prev; // Keeps the timer counting down smoothly!
-             });
+             // 1. Get the indestructible User ID
+             const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
              
-             // NO TOAST MESSAGE. The UI is clear enough.
+             // 2. Set the 20-hour Cooldown Time
+             const cooldownTime = Date.now() + (20 * 60 * 60 * 1000); 
+             
+             // 3. Update React State
+             setCooldownUntil(prev => {
+                 if (!prev || prev < Date.now()) return cooldownTime;
+                 return prev;
+             });
+
+             // 4. Force Supabase to save it immediately using the safe ID
+             if (safeUserId) {
+                 supabase.from('users')
+                     .update({ cooldown_until: cooldownTime })
+                     .eq('id', safeUserId)
+                     .then(({ error }) => {
+                         if (error) {
+                             console.error("❌ SUPABASE SAVE ERROR:", error.message);
+                         } else {
+                             console.log(`✅ OVERHEAT LOCKED IN DB FOR USER ${safeUserId}:`, cooldownTime);
+                         }
+                     });
+             } else {
+                 console.error("❌ GHOST USER BUG: Could not find User ID to save overheat!");
+             }
+             
              return; 
            }
            
@@ -596,21 +612,6 @@ function App() {
         </div>
       </div>
 
-      {/* ================= DEV CHEAT BUTTON (DELETE BEFORE LAUNCH) ================= */}
-      <button 
-        onClick={async () => {
-          const newBalance = balanceRef.current + 50000000; // Adds 50 Million RP
-          setBalance(newBalance);
-          balanceRef.current = newBalance;
-          await supabase.from('users').update({ balance: newBalance }).eq('id', user?.id);
-          showToast("💰 50M DEV FUNDS INJECTED", "success");
-        }}
-        className="absolute top-2 left-2 z-[999] bg-red-600 text-white text-[10px] font-black px-3 py-1 rounded border border-red-400 cursor-pointer hover:bg-red-500"
-      >
-        DEV: +50M RP
-      </button>
-      {/* ========================================================================= */}
-
       {/* CORE VIEW */}
       <div className="flex-1 relative flex flex-col items-center justify-center p-0 z-10 w-full overflow-hidden">
         
@@ -671,7 +672,7 @@ function App() {
                 onClick={() => {
                   // 🚨 THE LOCKOUT: Prevent the toggle if they are cooling down!
                   if (isOverheated || (cooldownUntil && cooldownUntil > Date.now())) {
-                    showToast("⚠️ SYSTEM COOLING DOWN. PLEASE WAIT.", "error");
+                    showToast("⚠️ SYSTEM COOLING DOWN. PLEASE WAIT.");
                     return;
                   }
                   toggleMining();
