@@ -83,66 +83,43 @@ async def run_validator():
             
             for user in users:
                 last_beat_str = user.get('last_heartbeat')
-                
-                # Fetch all timers from DB
                 relay_expiry = user.get('relay_expiry')
                 booster_expiry = user.get('booster_expiry')
                 botnet_expiry = user.get('botnet_expiry')
-                
-                if not last_beat_str:
-                    continue
 
-                # --- 1. CHECK STATUS (Offline vs Online vs Cloud Relay) ---
-        is_online = False
-        is_relay_active = False
-        status_msg = "OFFLINE"
-        
-        try:
-            now_dt = datetime.now(timezone.utc)
-
-            # A) Check if they are physically online right now
-            if last_beat_str:
-                last_beat_str_clean = last_beat_str.replace('Z', '+00:00')
-                last_beat_time = datetime.fromisoformat(last_beat_str_clean)
-                seconds_diff = (now_dt - last_beat_time).total_seconds()
-                
-                if seconds_diff <= TIMEOUT_SECONDS:
-                    is_online = True
-                    status_msg = f"ONLINE ({int(seconds_diff)}s lag)"
-            
-            # B) Check if they have an active Cloud Relay
-            relay_str = user.get('relay_expiry') # <-- Note: Ensure this matches your Supabase column name!
-            if relay_str:
-                relay_str_clean = relay_str.replace('Z', '+00:00')
-                relay_time = datetime.fromisoformat(relay_str_clean)
-                
-                if relay_time > now_dt:
-                    is_relay_active = True
-                    # 🚨 ONLY change the text to Cloud Relay if they are NOT physically online!
-                    if not is_online:
-                        status_msg = "CLOUD RELAY ACTIVE ☁️"
-
-            # 🛑 THE MASTER GATE: If they are offline AND have no active relay, skip them!
-            if not is_online and not is_relay_active:
-                continue
-
-        except Exception as e:
-            continue
-
-                # --- 2. CHECK ACTIVE BUFFS ---
+                # --- 1. CHECK ACTIVE BUFFS ---
+                # We use your existing helper function! Much cleaner!
                 has_active_relay = is_buff_active(relay_expiry)
                 has_active_booster = is_buff_active(booster_expiry)
                 has_active_botnet = is_buff_active(botnet_expiry)
 
+                # --- 2. CHECK STATUS (Offline vs Online) ---
+                is_online = False
+                status_msg = "OFFLINE"
+                
+                try:
+                    now_dt = datetime.now(timezone.utc)
+                    if last_beat_str:
+                        last_beat_str_clean = last_beat_str.replace('Z', '+00:00')
+                        last_beat_time = datetime.fromisoformat(last_beat_str_clean)
+                        seconds_diff = (now_dt - last_beat_time).total_seconds()
+                        
+                        if seconds_diff <= TIMEOUT_SECONDS: 
+                            is_online = True
+                            status_msg = f"ONLINE ({int(seconds_diff)}s lag)"
+                except Exception as e:
+                    pass
+
+                # 🚨 THE OVERRIDE: If not online but relay is active, update text!
                 if not is_online and has_active_relay:
                     status_msg = "CLOUD RELAY ACTIVE ☁️"
 
-                # --- 3. DECISION: PAY or SKIP ---
+                # 🛑 THE MASTER GATE: Skip if completely offline and no relay
                 if not is_online and not has_active_relay:
                     continue
 
-                # --- 4. PAYOUT LOGIC ---
-                current_balance = float(user['balance'])
+                # --- 3. PAYOUT LOGIC ---
+                current_balance = float(user.get('balance', 0))
                 multiplier, bandwidth_cap = get_tier_stats(current_balance)
                 
                 # Apply Signal Booster (+20%)
@@ -160,7 +137,7 @@ async def run_validator():
                 
                 total_reward = mining_reward + referral_reward
                 
-                # 5. Update Database
+                # 4. Update Database
                 new_balance = current_balance + total_reward
                 supabase.table('users').update({'balance': new_balance}).eq('id', user['id']).execute()
                 
