@@ -108,6 +108,8 @@ function App() {
       ? 0 
       : currentTier.multiplier;
 
+  const activeReferrals = Math.min(referralCount, currentTier.bandwidth);
+
   // --- 1. INITIALIZATION ---
   useEffect(() => {
     const init = async () => {
