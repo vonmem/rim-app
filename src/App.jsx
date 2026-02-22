@@ -282,31 +282,28 @@ function App() {
         const loadFactor = (Math.random() * 0.2) + 0.8; 
         
         // 1. Base Multiplier & God Mode Logic
-        let currentMult = currentTier.multiplier;
-        
         if (currentTier.id === 7.3) { // God Eye Tier
            // 🚨 CHECK IF OVERHEATED FIRST
            if (godModeRef.current >= GOD_MODE_DAILY_LIMIT) {
-             godModeRef.current = GOD_MODE_DAILY_LIMIT; // Cap the bar exactly at 100%
+             godModeRef.current = GOD_MODE_DAILY_LIMIT; 
              setGodModeElapsed(GOD_MODE_DAILY_LIMIT);
              
-             // Only trigger the shutdown sequence ONCE (not every millisecond)
-             if (!isOverheated) { 
-                 setIsOverheated(true);
-                 setStatus('IDLE'); // 🛑 INSTANTLY KILLS THE MINER (Python will see you go offline)
-                 
-                 const cooldownTime = Date.now() + (4 * 60 * 60 * 1000); // 4 Hour Cooldown
-                 setCooldownUntil(cooldownTime);
-                 
-                 // Lock it into Supabase so refreshing doesn't save them!
-                 supabase.from('users').update({ 
-                     cooldown_until: cooldownTime 
-                 }).eq('id', user.id);
-                 
-                 showToast("⚠️ OVERHEAT: EMERGENCY SHUTDOWN INITIATED.", "error");
-             }
+             setStatus('IDLE'); 
+             setIsOverheated(true);
              
-             return; // 🛑 CRITICAL: Stop reading the rest of this function so they get ZERO points!
+             // 🚨 FIX: Only set the timer if one doesn't already exist!
+             setCooldownUntil(prev => {
+                 if (!prev || prev < Date.now()) {
+                     const cooldownTime = Date.now() + (4 * 60 * 60 * 1000); 
+                     // Fire and forget to Supabase
+                     supabase.from('users').update({ cooldown_until: cooldownTime }).eq('id', user?.id);
+                     return cooldownTime;
+                 }
+                 return prev; // Keeps the timer counting down smoothly!
+             });
+             
+             // NO TOAST MESSAGE. The UI is clear enough.
+             return; 
            }
            
            // If NOT overheated, tick up normally
@@ -469,6 +466,16 @@ function App() {
       showToast(`✅ ${item.name} ACTIVATED!`, "success");
     }
   };
+
+  // 🚨 HIDE THE APP UNTIL SUPABASE LOADS THE INVENTORY
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-cyan-500 font-mono">
+        <div className="w-16 h-16 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
+        <p className="tracking-[0.3em] text-sm animate-pulse">ESTABLISHING SECURE UPLINK...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-white font-mono overflow-hidden select-none relative">
