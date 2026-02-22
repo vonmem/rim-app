@@ -49,6 +49,7 @@ function App() {
   const [inventory, setInventory] = useState([]); // Stores purchased NFTs ['tier_2', etc.]
   const [toast, setToast] = useState(null); // { message: "Access Granted", type: "success" }
   const [cooldownUntil, setCooldownUntil] = useState(null);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   // Forces the UI to re-render every second so the Cooldown Timer visually ticks down!
   const [, setTick] = useState(0);
@@ -102,9 +103,10 @@ function App() {
     t.id === 1 || inventory.includes(`tier_${t.id}`)
   ) || TIERS[0];
   
-  // Cleaned up for the Hard Stop economy!
-  const effectiveMultiplier = currentTier.multiplier;
-  const activeReferrals = Math.min(referralCount, currentTier.bandwidth);
+  // 🚨 THE FIX: Force multiplier to 0 if we are on Cooldown!
+  const effectiveMultiplier = (isOverheated || (cooldownUntil && cooldownUntil > Date.now())) 
+      ? 0 
+      : currentTier.multiplier;
 
   // --- 1. INITIALIZATION ---
   useEffect(() => {
@@ -142,7 +144,6 @@ function App() {
           
           // 🚨 RESTORE BLACK MARKET TIMERS FROM DATABASE
           if (data.relay_expiry) {
-             // Convert the database timestamptz string back into milliseconds!
              const relayMs = new Date(data.relay_expiry).getTime();
              setRelayExpiry(relayMs);
              localStorage.setItem('relayExpiry', relayMs.toString());
@@ -157,6 +158,24 @@ function App() {
              setBotnetExpiry(data.botnet_expiry);
              localStorage.setItem('botnetExpiry', data.botnet_expiry.toString());
           }
+
+          // 👇 THE AMNESIA FIX: RESTORE OVERHEAT COOLDOWN STATE
+          if (data.cooldown_until) {
+             const cooldownMs = parseInt(data.cooldown_until, 10);
+             if (cooldownMs > Date.now()) {
+                 // 🔒 The system is STILL cooling down! Force the locks!
+                 setCooldownUntil(cooldownMs);
+                 setIsOverheated(true);
+                 setStatus('IDLE'); // Ensure the miner is off
+                 
+                 // Snap the visual progress bar back to 100%
+                 setGodModeElapsed(GOD_MODE_DAILY_LIMIT);
+                 godModeRef.current = GOD_MODE_DAILY_LIMIT; 
+             }
+          }
+
+          // 👇 STEP B FIX: TELL THE APP WE ARE READY TO RENDER
+          setIsDataLoaded(true); 
           
         } else {
           // NEW USER: Create account
@@ -177,6 +196,9 @@ function App() {
           setBalance(100);
           balanceRef.current = 100;
           setInventory([]);
+          
+          // 👇 STEP B FIX: TELL THE APP NEW USER IS READY TO RENDER
+          setIsDataLoaded(true); 
         }
       }
     };
@@ -294,7 +316,7 @@ function App() {
              // 🚨 FIX: Only set the timer if one doesn't already exist!
              setCooldownUntil(prev => {
                  if (!prev || prev < Date.now()) {
-                     const cooldownTime = Date.now() + (4 * 60 * 60 * 1000); 
+                     const cooldownTime = Date.now() + (20 * 60 * 60 * 1000); 
                      // Fire and forget to Supabase
                      supabase.from('users').update({ cooldown_until: cooldownTime }).eq('id', user?.id);
                      return cooldownTime;
@@ -468,7 +490,7 @@ function App() {
   };
 
   // 🚨 HIDE THE APP UNTIL SUPABASE LOADS THE INVENTORY
-  if (!user) {
+  if (!user || !isDataLoaded) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-black text-cyan-500 font-mono">
         <div className="w-16 h-16 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mb-4"></div>

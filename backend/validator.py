@@ -86,6 +86,13 @@ async def run_validator():
                 relay_expiry = user.get('relay_expiry')
                 booster_expiry = user.get('booster_expiry')
                 botnet_expiry = user.get('botnet_expiry')
+                cooldown_expiry = user.get('cooldown_until') # 🚨 FETCH THE COOLDOWN!
+
+                # --- 0. THE MASTER LOCK (CHECK OVERHEAT FIRST) ---
+                # If they are on cooldown, completely skip them. No relay saves them!
+                if is_buff_active(cooldown_expiry):
+                    print(f"🛑 User {user['id']} | SYSTEM COOLING. Payouts locked.")
+                    continue
 
                 # --- 1. CHECK ACTIVE BUFFS ---
                 # We use your existing helper function! Much cleaner!
