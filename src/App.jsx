@@ -48,6 +48,14 @@ function App() {
   const [referralCount, setReferralCount] = useState(0);
   const [inventory, setInventory] = useState([]); // Stores purchased NFTs ['tier_2', etc.]
   const [toast, setToast] = useState(null); // { message: "Access Granted", type: "success" }
+  const [cooldownUntil, setCooldownUntil] = useState(null);
+
+  // Forces the UI to re-render every second so the Cooldown Timer visually ticks down!
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // --- CONSUMABLE TIMERS ---
   // Using lazy initialization `() =>` safely checks local storage only on the first load
@@ -94,7 +102,8 @@ function App() {
     t.id === 1 || inventory.includes(`tier_${t.id}`)
   ) || TIERS[0];
   
-  const effectiveMultiplier = (currentTier.id === 7.3 && isOverheated) ? 5.0 : currentTier.multiplier;
+  // Cleaned up for the Hard Stop economy!
+  const effectiveMultiplier = currentTier.multiplier;
   const activeReferrals = Math.min(referralCount, currentTier.bandwidth);
 
   // --- 1. INITIALIZATION ---
@@ -274,13 +283,35 @@ function App() {
         
         // 1. Base Multiplier & God Mode Logic
         let currentMult = currentTier.multiplier;
-        if (currentTier.id === 7.3) {
+        
+        if (currentTier.id === 7.3) { // God Eye Tier
+           // 🚨 CHECK IF OVERHEATED FIRST
+           if (godModeRef.current >= GOD_MODE_DAILY_LIMIT) {
+             godModeRef.current = GOD_MODE_DAILY_LIMIT; // Cap the bar exactly at 100%
+             setGodModeElapsed(GOD_MODE_DAILY_LIMIT);
+             
+             // Only trigger the shutdown sequence ONCE (not every millisecond)
+             if (!isOverheated) { 
+                 setIsOverheated(true);
+                 setStatus('IDLE'); // 🛑 INSTANTLY KILLS THE MINER (Python will see you go offline)
+                 
+                 const cooldownTime = Date.now() + (4 * 60 * 60 * 1000); // 4 Hour Cooldown
+                 setCooldownUntil(cooldownTime);
+                 
+                 // Lock it into Supabase so refreshing doesn't save them!
+                 supabase.from('users').update({ 
+                     cooldown_until: cooldownTime 
+                 }).eq('id', user.id);
+                 
+                 showToast("⚠️ OVERHEAT: EMERGENCY SHUTDOWN INITIATED.", "error");
+             }
+             
+             return; // 🛑 CRITICAL: Stop reading the rest of this function so they get ZERO points!
+           }
+           
+           // If NOT overheated, tick up normally
            godModeRef.current += 0.1;
            setGodModeElapsed(Math.floor(godModeRef.current));
-           if (godModeRef.current >= GOD_MODE_DAILY_LIMIT) {
-             setIsOverheated(true);
-             currentMult = 5.0; 
-           }
         }
 
         // 2. 📡 APPLY SIGNAL BOOSTER INSTANTLY (+20%)
@@ -340,6 +371,18 @@ function App() {
     window.toastTimer = setTimeout(() => setToast(null), 3500);
   };
   // ==========================================
+
+  // Calculates time left for the Cooldown Timer
+  const getCooldownDisplay = () => {
+    if (!cooldownUntil) return null;
+    const left = cooldownUntil - Date.now();
+    if (left <= 0) return null; // Cooldown finished!
+
+    const h = Math.floor(left / (1000 * 60 * 60));
+    const m = Math.floor((left % (1000 * 60 * 60)) / (1000 * 60));
+    const s = Math.floor((left % (1000 * 60)) / 1000);
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const handleBuyItem = async (item) => {
     // 1. Check if they have enough balance
@@ -588,38 +631,53 @@ function App() {
 
               {/* THE NEW FLOATING MINING RIG (Replaces the old <MiningRig /> tag) */}
               <div 
-                className="flex flex-col items-center justify-center relative cursor-pointer w-full max-w-sm mt-8 mb-4" 
-                onClick={toggleMining}
+                // 🚨 CHANGED: Disable the pointer if we are on cooldown!
+                className={`flex flex-col items-center justify-center relative w-full max-w-sm mt-8 mb-4 ${
+                  isOverheated || (cooldownUntil && cooldownUntil > Date.now()) 
+                    ? 'cursor-not-allowed' 
+                    : 'cursor-pointer'
+                }`} 
+                onClick={() => {
+                  // 🚨 THE LOCKOUT: Prevent the toggle if they are cooling down!
+                  if (isOverheated || (cooldownUntil && cooldownUntil > Date.now())) {
+                    showToast("⚠️ SYSTEM COOLING DOWN. PLEASE WAIT.", "error");
+                    return;
+                  }
+                  toggleMining();
+                }}
               >
                 {/* BACKGROUND GLOW */}
                 <div className={`absolute w-72 h-72 rounded-full blur-[80px] transition-all duration-1000 ${
-                  isOverheated ? 'bg-red-600/40' : 
+                  isOverheated || (cooldownUntil && cooldownUntil > Date.now()) ? 'bg-red-600/40' : 
                   status === 'MINING' ? 'bg-cyan-500/30' : 'bg-gray-800/20'
                 }`}></div>
 
                 {/* THE 3D NFT IMAGE */}
-                {/* CHANGED: Increased size from w-64 h-64 to w-80 h-80 for a bigger presence */}
                 <div className="relative w-80 h-80 z-10 flex items-center justify-center">
                    <img 
                       src={currentTier.image} 
                       alt={currentTier.name}
-                      // Ensure this stays object-contain so the whole character is always visible
                       className={`w-full h-full object-contain transition-all duration-1000 ${
-                        isOverheated ? 'brightness-50 sepia-[.8] hue-rotate-[-50deg] animate-pulse drop-shadow-[0_0_25px_rgba(220,38,38,0.8)]' :
+                        isOverheated || (cooldownUntil && cooldownUntil > Date.now()) 
+                          ? 'brightness-50 sepia-[.8] hue-rotate-[-50deg] animate-pulse drop-shadow-[0_0_25px_rgba(220,38,38,0.8)]' :
                         status === 'MINING' ? 'animate-float drop-shadow-[0_0_25px_rgba(34,211,238,0.5)]' : 
                         'translate-y-0 grayscale-[0.6] opacity-70 drop-shadow-[0_0_15px_rgba(0,0,0,0.8)]'
                       }`}
                    />
                 </div>
 
-                {/* STATUS BADGE */}
+                {/* STATUS BADGE WITH LIVE TIMER */}
                 <div className="mt-8 z-20">
                    <span className={`px-5 py-2 rounded-full text-[11px] font-black tracking-[0.2em] border transition-colors duration-500 ${
-                      isOverheated ? 'bg-red-900/50 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.4)]' :
+                      isOverheated || (cooldownUntil && cooldownUntil > Date.now()) 
+                        ? 'bg-red-900/50 border-red-500 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.4)]' :
                       status === 'MINING' ? 'bg-cyan-900/50 border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 
                       'bg-gray-900 border-gray-700 text-gray-500'
                    }`}>
-                      {isOverheated ? 'SYSTEM LOCKDOWN' : status === 'MINING' ? 'UPLINK ACTIVE' : 'SYSTEM OFFLINE'}
+                      {/* 🚨 CHANGED: Inject the live timer directly into the badge! */}
+                      {isOverheated || (cooldownUntil && cooldownUntil > Date.now()) 
+                        ? `COOLING: ${getCooldownDisplay()}` 
+                        : status === 'MINING' ? 'UPLINK ACTIVE' : 'SYSTEM OFFLINE'}
                    </span>
                 </div>
               </div>
