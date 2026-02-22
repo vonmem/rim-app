@@ -209,37 +209,37 @@ function App() {
 
   // --- 2. TELEMETRY ENGINE (The "Ghost" Collector) ---
   useEffect(() => {
-    // Only collect data when MINING is active to save battery/bandwidth
-    if (status === 'MINING') {
-      const collectSignal = async () => {
-        // A. Get Network Stats
-        const netStats = await TelemetryService.getNetworkStats();
-        setSignalStrength(netStats.type === 'wifi' || netStats.type === '4g' ? 'STRONG' : 'WEAK');
+    // 🚨 FIX: Removed the "if MINING" lock so DePIN/Map features work 24/7!
+    const collectSignal = async () => {
+      // A. Get Network Stats
+      const netStats = await TelemetryService.getNetworkStats();
+      setSignalStrength(netStats.type === 'wifi' || netStats.type === '4g' ? 'STRONG' : 'WEAK');
 
-        // B. Get Location (H3 Index)
-        // Note: This might ask user for permission. If denied, it returns null.
-        try {
-           // We only ask for location once per session to avoid annoying the user
-           if (!locationData) {
-              const loc = await LocationService.getHexId();
-              if (loc) {
-                setLocationData(loc);
-                // Simulate fetching "Nodes in this City" from DB
-                // In real app: await supabase.rpc('count_nodes_in_hex', { hex: loc.h3Index })
-                setCityNodeCount(Math.floor(Math.random() * 500) + 100); 
-              }
-           }
-        } catch (e) {
-           console.log("Loc Service Silent Fail");
-        }
-      };
-      
-      collectSignal();
-      // Refresh signal stats every 30s
-      const signalInterval = setInterval(collectSignal, 30000);
-      return () => clearInterval(signalInterval);
-    }
-  }, [status, locationData]);
+      // B. Get Location (H3 Index)
+      // Note: This might ask user for permission. If denied, it returns null.
+      try {
+         // We only ask for location once per session to avoid annoying the user
+         if (!locationData) {
+            const loc = await LocationService.getHexId();
+            if (loc) {
+              setLocationData(loc);
+              // Simulate fetching "Nodes in this City" from DB
+              setCityNodeCount(Math.floor(Math.random() * 500) + 100); 
+            }
+         }
+      } catch (e) {
+         console.log("Loc Service Silent Fail");
+      }
+    };
+    
+    collectSignal();
+    
+    // Refresh signal stats every 30s
+    const signalInterval = setInterval(collectSignal, 30000);
+    return () => clearInterval(signalInterval);
+    
+  // 🚨 FIX: Removed 'status' from the dependency array so it doesn't unnecessarily re-trigger when mining toggles
+  }, [locationData]);
 
   // --- 3. HEARTBEAT & SYNC LOOP (The "Proof of Life") ---
   useEffect(() => {
