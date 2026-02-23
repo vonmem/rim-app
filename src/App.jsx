@@ -292,6 +292,39 @@ function App() {
     };
   }, [user, status]);
 
+  // --- 3.5. CONSUMABLES: BYPASS COOLDOWN ---
+  const buyConsumable = async () => {
+      // Apex pay 50k, Alliance/Dolphins pay 5k, Bats pay 1k
+      const cost = currentTier.id >= 7 ? 50000 : currentTier.id >= 4 ? 5000 : 1000;
+      
+      if (balanceRef.current < cost) {
+          // (Optional) You can change showToast to whatever notification system you use
+          console.log(`⚠️ INSUFFICIENT FUNDS. NEED ${cost} RP.`); 
+          return;
+      }
+
+      // 1. Deduct Balance instantly on screen
+      setBalance(prev => prev - cost);
+      balanceRef.current -= cost;
+
+      // 2. Instantly Reset Locks
+      setIsOverheated(false);
+      setCooldownUntil(null);
+      setGodModeElapsed(0);
+      godModeRef.current = 0;
+      setStatus('IDLE');
+
+      // 3. Save to Database
+      const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (safeUserId) {
+          await supabase.from('users').update({
+              balance: balanceRef.current,
+              cooldown_until: null
+          }).eq('id', safeUserId);
+          console.log(`✅ BYPASS PURCHASED. UPLINK READY.`);
+      }
+  };
+
   // --- 4. MINING TOGGLE ---
   const toggleMining = () => {
     if (status === 'MINING') {
@@ -306,18 +339,18 @@ function App() {
         const loadFactor = (Math.random() * 0.2) + 0.8; 
         
         // --- UNIVERSAL TIER LIMITS & COOLDOWN ENGINE ---
-        // 1. Calculate precise limits based on the user's active tier
-        // NOTE: For testing, change * 3600 to * 2 (so a 4-hour limit = 8 seconds!)
-        const DAILY_LIMIT_SECONDS = currentTier.limitHours * 2; 
+        // 🚨 TEST OVERRIDE: Change 3600 to 2 for quick testing!
+        const timeMultiplier = 3600; // Keep at 3600 for production!
+        const DAILY_LIMIT_SECONDS = currentTier.limitHours * timeMultiplier; 
         const COOLDOWN_HOURS = 24 - currentTier.limitHours; 
 
-        // 🚨 2. CHECK IF LIMIT REACHED FIRST
+        // 1. CHECK IF LIMIT REACHED
         if (godModeRef.current >= DAILY_LIMIT_SECONDS) {
             godModeRef.current = DAILY_LIMIT_SECONDS; 
             setGodModeElapsed(DAILY_LIMIT_SECONDS);
             
             setStatus('IDLE'); 
-            setIsOverheated(true); // (We still use this boolean to trigger the UI locks)
+            setIsOverheated(true); 
             
             const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
             const cooldownTime = Date.now() + (COOLDOWN_HOURS * 60 * 60 * 1000); 
@@ -327,22 +360,21 @@ function App() {
                 return prev;
             });
 
-            // Force Supabase to save it
             if (safeUserId) {
-                supabase.from('users')
-                    .update({ cooldown_until: cooldownTime })
-                    .eq('id', safeUserId)
-                    .then(({ error }) => {
-                        if (error) console.error("❌ DB SAVE ERROR:", error.message);
-                        else console.log(`✅ ${currentTier.narrative} LOCKED IN DB:`, cooldownTime);
-                    });
+                supabase.from('users').update({ cooldown_until: cooldownTime }).eq('id', safeUserId);
             }
             return; 
         }
         
-        // 3. If NOT locked out, tick up normally
-        godModeRef.current += 0.1;
+        // 2. TICK UP NORMALLY
+        godModeRef.current += 1; // Assuming your interval is 1000ms (1 second)
         setGodModeElapsed(Math.floor(godModeRef.current));
+        
+        // 3. 🚨 OPTIMISTIC UI: Visually tick the balance up on the screen!
+        // Make sure BASE_MINING_RATE matches your actual base rate variable!
+        const tickReward = (BASE_MINING_RATE * effectiveMultiplier) + (activeReferrals * REFERRAL_RATE_PER_TICK);
+        setBalance(prev => prev + tickReward);
+        balanceRef.current += tickReward;
 
         // 2. 📡 APPLY SIGNAL BOOSTER INSTANTLY (+20%)
         if (boosterRef.current && boosterRef.current > now) {
@@ -667,9 +699,9 @@ function App() {
                     : 'cursor-pointer'
                 }`} 
                 onClick={() => {
-                  // 🚨 THE LOCKOUT: Prevent the toggle if they are cooling down!
+                  // 🚨 THE LOCKOUT: Prevent the toggle and show dynamic narrative!
                   if (isOverheated || (cooldownUntil && cooldownUntil > Date.now())) {
-                    showToast("⚠️ SYSTEM COOLING DOWN. PLEASE WAIT.");
+                    showToast(`⚠️ ${currentTier.narrative}. PLEASE WAIT OR RECHARGE.`);
                     return;
                   }
                   toggleMining();
@@ -703,13 +735,29 @@ function App() {
                       status === 'MINING' ? 'bg-cyan-900/50 border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.4)]' : 
                       'bg-gray-900 border-gray-700 text-gray-500'
                    }`}>
-                      {/* Dynamically splits the narrative (e.g., "OXYGEN DEPLETED") and adds the timer! */}
                       {isOverheated || (cooldownUntil && cooldownUntil > Date.now()) 
                         ? `LOCKOUT: ${getCooldownDisplay()}` 
                         : status === 'MINING' ? 'UPLINK ACTIVE' : 'SYSTEM OFFLINE'}
                    </span>
                 </div>
               </div>
+
+              {/* 🚨 THE EMERGENCY QUICK-BUY BUTTON (Sits right under the Rig) */}
+              {(isOverheated || (cooldownUntil && cooldownUntil > Date.now())) && (
+                 <div className="mt-2 mb-6 z-30 flex flex-col items-center">
+                    <button 
+                       onClick={buyConsumable}
+                       className="px-6 py-3 bg-red-900/30 border border-red-500 text-red-400 font-bold rounded-lg text-[10px] tracking-[0.2em] animate-pulse hover:bg-red-800/50 transition-colors shadow-[0_0_15px_rgba(220,38,38,0.5)]"
+                    >
+                       {currentTier.id >= 7 ? 'INJECT LIQUID NITROGEN (-50,000 RP)' : 
+                        currentTier.id >= 4 ? 'BUY O2 TANK REFILL (-5,000 RP)' : 
+                        'BUY ENERGY CELL (-1,000 RP)'}
+                    </button>
+                    <p className="text-[8px] text-gray-500 mt-2 uppercase tracking-widest">
+                       Or visit the Black Market for bulk supplies
+                    </p>
+                 </div>
+              )}
 
               {/* STATS PANEL */}
               <StatsPanel 

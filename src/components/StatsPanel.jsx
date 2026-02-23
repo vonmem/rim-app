@@ -69,9 +69,25 @@ const StatsPanel = ({ status, isOverheated, currentTier, effectiveMultiplier, ba
        <div className="space-y-1 border-t border-gray-800 pt-2 mt-2 min-h-[60px]">
           {isOverheated ? (
              <div className="text-[9px] text-red-900 font-mono tracking-tighter">
-               {'>'} CRITICAL TEMPERATURE REACHED<br/>
-               {'>'} CONNECTION SEVERED<br/>
-               {'>'} AWAITING COOLDOWN CYCLE...
+               {currentTier.id >= 7 ? (
+                 <>
+                   {'>'} CRITICAL TEMPERATURE REACHED<br/>
+                   {'>'} HARDWARE MELTDOWN IMMINENT<br/>
+                   {'>'} AWAITING COOLANT INJECTION...
+                 </>
+               ) : currentTier.id >= 4 ? (
+                 <>
+                   {'>'} OXYGEN TANKS EMPTY<br/>
+                   {'>'} CABIN PRESSURE DROPPING<br/>
+                   {'>'} AWAITING O2 REFILL...
+                 </>
+               ) : (
+                 <>
+                   {'>'} ENERGY CELLS DEPLETED<br/>
+                   {'>'} SYSTEM POWER HALTED<br/>
+                   {'>'} AWAITING BATTERY RECHARGE...
+                 </>
+               )}
              </div>
           ) : (
             logs.map((l, i) => (
