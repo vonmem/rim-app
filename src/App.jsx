@@ -308,7 +308,7 @@ function App() {
         // --- UNIVERSAL TIER LIMITS & COOLDOWN ENGINE ---
         // 1. Calculate precise limits based on the user's active tier
         // NOTE: For testing, change * 3600 to * 2 (so a 4-hour limit = 8 seconds!)
-        const DAILY_LIMIT_SECONDS = currentTier.limitHours * 3600; 
+        const DAILY_LIMIT_SECONDS = currentTier.limitHours * 2; 
         const COOLDOWN_HOURS = 24 - currentTier.limitHours; 
 
         // 🚨 2. CHECK IF LIMIT REACHED FIRST
