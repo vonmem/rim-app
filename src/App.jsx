@@ -34,6 +34,26 @@ const TIERS = [
     { id: 7.3, name: 'GOD EYE', type: 'GOD', threshold: 20000000, multiplier: 100.0, bandwidth: 100000, limitHours: 4, narrative: 'SYSTEM OVERHEATED', color: '#fbbf24', icon: '☀️', image: '/apex3.png' }
   ];
 
+// --- BLACK MARKET CONSUMABLES ---
+  const CONSUMABLES = [
+    // 🦇 BATS (Energy)
+    { id: 'c_energy', name: 'ENERGY CELL', type: 'BAT', costRP: 1000, qty: 1, desc: 'Instantly recharges Scout/Bat/Vampire rigs. Bypasses 12h cooldown.', icon: '🔋', color: '#3b82f6' },
+    { id: 'c_energy_bulk', name: 'BATTERY BUNDLE', type: 'BAT', costRP: 2500, qty: 3, desc: '3x Energy Cells. Save 16% on bulk purchase.', icon: '📦', color: '#3b82f6' },
+    
+    // 🐬 DOLPHINS (Oxygen)
+    { id: 'c_o2', name: 'O2 TANK REFILL', type: 'DOLPHIN', costRP: 5000, qty: 1, desc: 'Instantly pressurizes Diver/Surfer/Alliance rigs. Bypasses 10h/8h cooldown.', icon: '🤿', color: '#06b6d4' },
+    { id: 'c_o2_bulk', name: 'DEEP DIVE CRATE', type: 'DOLPHIN', costRP: 13500, qty: 3, desc: '3x O2 Refills. Save 10% on bulk purchase.', icon: '🌊', color: '#06b6d4' },
+    
+    // 👁️ APEX (Thermal)
+    { id: 'c_cryo', name: 'LIQUID NITROGEN', type: 'APEX', costRP: 50000, qty: 1, desc: 'Instantly cools Apex Tier hardware. Bypasses strict God Eye cooldowns.', icon: '❄️', color: '#fbbf24' },
+    { id: 'c_cryo_bulk', name: 'CRYO-CHAMBER', type: 'APEX', costRP: 135000, qty: 3, desc: '3x Liquid Nitrogen tanks. Save 10% on bulk purchase.', icon: '🧊', color: '#fbbf24' },
+    
+    // 🚨 PREMIUM CONTRABAND (The Whale Exploits - Fiat/Crypto)
+    { id: 'tw_bat', name: 'TIME-WARP (BAT)', type: 'PREMIUM', costUSD: 0.99, costCrypto: '0.2 TON', desc: 'Instantly bypass cooldown AND deposits 12h of Bat yield to your wallet.', icon: '⏳', color: '#a855f7' },
+    { id: 'tw_dolphin', name: 'TIME-WARP (DOLPHIN)', type: 'PREMIUM', costUSD: 1.99, costCrypto: '0.4 TON', desc: 'Instantly bypass cooldown AND deposits 10h of Dolphin yield to your wallet.', icon: '⌛', color: '#d946ef' },
+    { id: 'tw_apex', name: 'TIME-WARP (APEX)', type: 'PREMIUM', costUSD: 9.99, costCrypto: '2.0 TON', desc: 'Instantly bypass cooldown AND deposits 4h of God Eye yield to your wallet.', icon: '🌌', color: '#f43f5e' }
+  ];
+
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -98,10 +118,14 @@ function App() {
     botnetRef.current = botnetExpiry;
   }, [botnetExpiry]);
 
-  // Calculate Tier based on OWNED ITEMS, not Balance
+  // Calculate Tier based on OWNED ITEMS
   const currentTier = [...TIERS].reverse().find(t => 
     t.id === 1 || inventory.includes(`tier_${t.id}`)
   ) || TIERS[0];
+
+  // 🚨 THE FIX: Find the actual NEXT tier in the hierarchy, regardless of balance
+  const nextTierIndex = TIERS.findIndex(t => t.id === currentTier.id) + 1;
+  const nextTier = nextTierIndex < TIERS.length ? TIERS[nextTierIndex] : null;
   
   // 🚨 THE FIX: Force multiplier to 0 if we are on Cooldown!
   const effectiveMultiplier = (isOverheated || (cooldownUntil && cooldownUntil > Date.now())) 
@@ -171,8 +195,8 @@ function App() {
                  setStatus('IDLE'); // Ensure the miner is off
                  
                  // Snap the visual progress bar back to 100%
-                 setGodModeElapsed(GOD_MODE_DAILY_LIMIT);
-                 godModeRef.current = GOD_MODE_DAILY_LIMIT; 
+                 setGodModeElapsed(9999999);
+                 godModeRef.current = 9999999; 
              }
           }
 
@@ -609,26 +633,29 @@ function App() {
             
             {/* THE NEXT TIER PROGRESS BAR */}
             {(() => {
-              const nextTier = TIERS.find(t => t.id !== 1 && (!inventory || !inventory.includes(`tier_${t.id}`)));
+              // 🚨 THE FIX: Find the index of the CURRENT tier, and just grab the next one!
+              const currentIndex = TIERS.findIndex(t => t.id === currentTier.id);
+              const nextTier = currentIndex >= 0 && currentIndex < TIERS.length - 1 
+                  ? TIERS[currentIndex + 1] 
+                  : null;
               
-              if (!nextTier) return <p className="text-[8px] text-cyan-400 mt-1 uppercase">MAX TIER REACHED</p>;
+              if (!nextTier) return <p className="text-[8px] text-cyan-400 mt-1 font-bold tracking-widest uppercase animate-pulse">MAX TIER REACHED</p>;
               
-              // FIX: threshold instead of price!
               const rawPrice = typeof nextTier.threshold === 'number' ? nextTier.threshold : parseInt(nextTier.threshold.toString().replace(/[^0-9]/g, ''));
               const progress = Math.min(100, (balance / rawPrice) * 100);
-              
+
               return (
-                <div className="w-32 mt-1">
-                  <div className="flex justify-between text-[7px] text-gray-500 mb-0.5 uppercase tracking-wider">
-                    <span>Next: {nextTier.name}</span>
-                    <span>{Math.floor(progress)}%</span>
-                  </div>
-                  <div className="w-full h-1 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
-                    <div 
-                      className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 transition-all duration-300" 
-                      style={{ width: `${progress}%` }}
-                    ></div>
-                  </div>
+                <div className="w-full mt-2">
+                   <div className="flex justify-between text-[8px] text-gray-500 mb-1 tracking-widest uppercase">
+                      <span>NEXT: {nextTier.name}</span>
+                      <span>{Math.floor(progress)}%</span>
+                   </div>
+                   <div className="w-full h-1 bg-gray-900 rounded-full overflow-hidden">
+                      <div className="h-full bg-cyan-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                   </div>
+                   <div className="text-[7px] text-right text-gray-600 mt-1 font-mono">
+                      {Math.floor(balance).toLocaleString()} / {rawPrice.toLocaleString()} RP
+                   </div>
                 </div>
               );
             })()}
