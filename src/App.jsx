@@ -742,12 +742,12 @@ function App() {
                 </div>
               </div>
 
-              {/* 🚨 THE EMERGENCY QUICK-BUY BUTTON (Sits right under the Rig) */}
+              {/* 🚨 THE EMERGENCY QUICK-BUY BUTTON (Now Glowing Green!) */}
               {(isOverheated || (cooldownUntil && cooldownUntil > Date.now())) && (
                  <div className="mt-2 mb-6 z-30 flex flex-col items-center">
                     <button 
                        onClick={buyConsumable}
-                       className="px-6 py-3 bg-red-900/30 border border-red-500 text-red-400 font-bold rounded-lg text-[10px] tracking-[0.2em] animate-pulse hover:bg-red-800/50 transition-colors shadow-[0_0_15px_rgba(220,38,38,0.5)]"
+                       className="px-6 py-3 bg-green-900/30 border border-green-500 text-green-400 font-bold rounded-lg text-[10px] tracking-[0.2em] animate-pulse hover:bg-green-800/50 transition-colors shadow-[0_0_15px_rgba(34,197,94,0.5)]"
                     >
                        {currentTier.id >= 7 ? 'INJECT LIQUID NITROGEN (-50,000 RP)' : 
                         currentTier.id >= 4 ? 'BUY O2 TANK REFILL (-5,000 RP)' : 
