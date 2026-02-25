@@ -433,7 +433,11 @@ function App() {
             setStatus('IDLE'); 
             setIsOverheated(true); 
             
-            const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            // 🚨 THE FIX: Catching every possible variation of the user ID
+            const safeUserId = (typeof currentUser !== 'undefined' && currentUser?.id) 
+                            || (typeof user !== 'undefined' && user?.id) 
+                            || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+                            
             const cooldownTime = Date.now() + (COOLDOWN_HOURS * 60 * 60 * 1000); 
             
             setCooldownUntil(prev => {
@@ -441,8 +445,17 @@ function App() {
                 return prev;
             });
 
+            // Force Supabase to save it and LOG THE RESULT
             if (safeUserId) {
-                supabase.from('users').update({ cooldown_until: cooldownTime }).eq('id', safeUserId);
+                supabase.from('users')
+                  .update({ cooldown_until: cooldownTime })
+                  .eq('id', safeUserId)
+                  .then(({ error }) => {
+                     if (error) console.error("❌ DB SAVE FAILED:", error.message);
+                     else console.log(`✅ RIG LOCKED IN DB UNTIL:`, new Date(cooldownTime).toLocaleTimeString());
+                  });
+            } else {
+                console.error("❌ GHOST BUG: No User ID found. Could not save lock to DB!");
             }
             return; 
         }
@@ -906,7 +919,7 @@ function App() {
           <Users size={18} /><span className="text-[8px] mt-1 font-bold">SQUAD</span>
         </button>
         <button onClick={() => setTab('MARKET')} className={`p-4 flex flex-col items-center ${tab === 'MARKET' ? 'text-white' : 'text-gray-600'}`}>
-          <Zap size={18} /><span className="text-[8px] mt-1 font-bold">MINT</span>
+          <ShoppingCart size={18} /><span className="text-[8px] mt-1 font-bold">BLACK MARKET</span>
         </button>
       </div>
 
