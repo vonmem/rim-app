@@ -70,6 +70,9 @@ function App() {
   const [toast, setToast] = useState(null); // { message: "Access Granted", type: "success" }
   const [cooldownUntil, setCooldownUntil] = useState(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [consumables, setConsumables] = useState({
+  "c_energy": 0, "c_o2": 0, "c_cryo": 0, "tw_bat": 0, "tw_dolphin": 0, "tw_apex": 0
+});
 
   // Forces the UI to re-render every second so the Cooldown Timer visually ticks down!
   const [, setTick] = useState(0);
@@ -165,8 +168,14 @@ function App() {
           balanceRef.current = data.balance;
           setReferralCount(0); // In prod, fetch real count
           
-          // NEW: Load their inventory (default to empty array if null)
+          // Load their inventory (Rigs/NFTs)
           setInventory(data.inventory || []); 
+          
+          // 🚨 NEW: Load their Consumables Backpack (JSON)
+          // If they don't have one yet, give them an empty default!
+          setConsumables(data.consumables || {
+            "c_energy": 0, "c_o2": 0, "c_cryo": 0, "tw_bat": 0, "tw_dolphin": 0, "tw_apex": 0
+          }); 
           
           // 🚨 RESTORE BLACK MARKET TIMERS FROM DATABASE
           if (data.relay_expiry) {
@@ -346,6 +355,54 @@ function App() {
               cooldown_until: null
           }).eq('id', safeUserId);
           console.log(`✅ BYPASS PURCHASED. UPLINK READY.`);
+      }
+  };
+
+  // --- BLACK MARKET: BUY CONSUMABLES ---
+  const buyBlackMarketItem = async (item) => {
+      // 1. Handle Fiat/Crypto Gateway
+      if (item.type === 'PREMIUM') {
+          // showToast("⚠️ TON Web3 Gateway Initializing soon...");
+          console.log(`Routing to crypto payment for ${item.costCrypto}...`);
+          return;
+      }
+
+      // 2. Check RP Balance
+      if (balanceRef.current < item.costRP) {
+          // showToast(`⚠️ INSUFFICIENT RP. NEED ${item.costRP.toLocaleString()}.`);
+          console.log(`Not enough RP for ${item.name}`);
+          return;
+      }
+
+      // 3. Deduct RP
+      const newBalance = balanceRef.current - item.costRP;
+      setBalance(newBalance);
+      balanceRef.current = newBalance;
+
+      // 4. Update the Backpack (JSON Object)
+      // Extract the base ID (e.g., 'c_o2_bulk' becomes 'c_o2') to stack them properly
+      const baseId = item.id.replace('_bulk', ''); 
+      
+      const updatedConsumables = {
+          ...consumables,
+          [baseId]: (consumables[baseId] || 0) + item.qty
+      };
+      setConsumables(updatedConsumables);
+
+      // 5. Save to Supabase JSONB column
+      const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (safeUserId) {
+          const { error } = await supabase.from('users').update({
+              balance: newBalance,
+              consumables: updatedConsumables
+          }).eq('id', safeUserId);
+          
+          if (!error) {
+              // showToast(`✅ ACQUIRED: ${item.qty}x ${item.name}`);
+              console.log("Saved to DB:", updatedConsumables);
+          } else {
+              console.error("DB Save Error:", error);
+          }
       }
   };
 
