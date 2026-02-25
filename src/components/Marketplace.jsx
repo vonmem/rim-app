@@ -1,7 +1,7 @@
 import React from 'react';
 
-// Pass the arrays and functions down from App.jsx as props
-const Marketplace = ({ TIERS, CONSUMABLES, buyBlackMarketItem, balance }) => {
+// 🚨 UPDATED: Catching all 6 props from App.jsx!
+const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, buyBlackMarketItem }) => {
   return (
     <div className="w-full h-full overflow-y-auto pb-24 px-4 pt-4 text-white">
       
@@ -53,17 +53,34 @@ const Marketplace = ({ TIERS, CONSUMABLES, buyBlackMarketItem, balance }) => {
         </h3>
         <div className="grid grid-cols-2 gap-3">
           {/* We slice(1) to hide the free Scout tier from the shop */}
-          {TIERS.slice(1).map(tier => (
-             <div key={tier.id} className="bg-gray-900/50 border border-gray-800 p-3 rounded-lg flex flex-col items-center text-center">
-                <img src={tier.image} alt={tier.name} className="w-16 h-16 object-contain mb-2 drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]" />
-                <h4 className="font-bold text-[10px] tracking-widest" style={{ color: tier.color }}>{tier.name}</h4>
-                <p className="text-[8px] text-gray-500 mb-2">{tier.multiplier}x MULTIPLIER</p>
-                
-                <button className="w-full py-1.5 bg-cyan-900/30 border border-cyan-500 text-cyan-400 text-[9px] font-bold rounded">
-                   {typeof tier.threshold === 'number' ? `${tier.threshold.toLocaleString()} RP` : tier.threshold}
-                </button>
-             </div>
-          ))}
+          {TIERS.slice(1).map(tier => {
+             // Check if the user already owns this specific rig
+             const isOwned = userInventory && userInventory.includes(`tier_${tier.id}`);
+             const isAffordable = typeof tier.threshold === 'number' && balance >= tier.threshold;
+
+             return (
+               <div key={tier.id} className="bg-gray-900/50 border border-gray-800 p-3 rounded-lg flex flex-col items-center text-center">
+                  <img src={tier.image} alt={tier.name} className="w-16 h-16 object-contain mb-2 drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]" />
+                  <h4 className="font-bold text-[10px] tracking-widest" style={{ color: tier.color }}>{tier.name}</h4>
+                  <p className="text-[8px] text-gray-500 mb-2">{tier.multiplier}x MULTIPLIER</p>
+                  
+                  <button 
+                     // Trigger your old Rig buying function!
+                     onClick={() => !isOwned && onBuyItem(tier)}
+                     disabled={isOwned || (!isOwned && !isAffordable)}
+                     className={`w-full py-1.5 text-[9px] font-bold rounded tracking-widest transition-colors ${
+                        isOwned ? 'bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed' :
+                        isAffordable ? 'bg-cyan-900/30 border border-cyan-500 text-cyan-400 hover:bg-cyan-800/50' :
+                        'bg-red-900/20 border border-red-900 text-red-700 cursor-not-allowed'
+                     }`}
+                  >
+                     {isOwned ? 'INTEGRATED' : 
+                      typeof tier.threshold === 'number' ? `${tier.threshold.toLocaleString()} RP` : 
+                      tier.threshold}
+                  </button>
+               </div>
+             );
+          })}
         </div>
       </div>
 

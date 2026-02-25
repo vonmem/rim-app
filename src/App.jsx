@@ -762,9 +762,12 @@ function App() {
            />
         ) : tab === 'MARKET' ? (
            <Marketplace 
-              balance={balance} 
-              userInventory={inventory}
-              onBuyItem={handleBuyItem}
+              TIERS={TIERS}                           // Need this to map the hardware
+              CONSUMABLES={CONSUMABLES}               // Need this to map the contraband
+              balance={balance}                       // Checks if they can afford items
+              userInventory={inventory}               // Checks if they already own a rig
+              onBuyItem={handleBuyItem}               // Your OLD function to buy a Rig
+              buyBlackMarketItem={buyBlackMarketItem} // Your NEW function to buy Consumables
            />
         ) : (
            <>
