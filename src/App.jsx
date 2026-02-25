@@ -35,24 +35,31 @@ const TIERS = [
   ];
 
 // --- BLACK MARKET CONSUMABLES ---
-  const CONSUMABLES = [
-    // 🦇 BATS (Energy)
-    { id: 'c_energy', name: 'ENERGY CELL', type: 'BAT', costRP: 1000, qty: 1, desc: 'Instantly recharges Scout/Bat/Vampire rigs. Bypasses 12h cooldown.', icon: '🔋', color: '#3b82f6' },
-    { id: 'c_energy_bulk', name: 'BATTERY BUNDLE', type: 'BAT', costRP: 2500, qty: 3, desc: '3x Energy Cells. Save 16% on bulk purchase.', icon: '📦', color: '#3b82f6' },
-    
-    // 🐬 DOLPHINS (Oxygen)
-    { id: 'c_o2', name: 'O2 TANK REFILL', type: 'DOLPHIN', costRP: 5000, qty: 1, desc: 'Instantly pressurizes Diver/Surfer/Alliance rigs. Bypasses 10h/8h cooldown.', icon: '🤿', color: '#06b6d4' },
-    { id: 'c_o2_bulk', name: 'DEEP DIVE CRATE', type: 'DOLPHIN', costRP: 13500, qty: 3, desc: '3x O2 Refills. Save 10% on bulk purchase.', icon: '🌊', color: '#06b6d4' },
-    
-    // 👁️ APEX (Thermal)
-    { id: 'c_cryo', name: 'LIQUID NITROGEN', type: 'APEX', costRP: 50000, qty: 1, desc: 'Instantly cools Apex Tier hardware. Bypasses strict God Eye cooldowns.', icon: '❄️', color: '#fbbf24' },
-    { id: 'c_cryo_bulk', name: 'CRYO-CHAMBER', type: 'APEX', costRP: 135000, qty: 3, desc: '3x Liquid Nitrogen tanks. Save 10% on bulk purchase.', icon: '🧊', color: '#fbbf24' },
-    
-    // 🚨 PREMIUM CONTRABAND (The Whale Exploits - Fiat/Crypto)
-    { id: 'tw_bat', name: 'TIME-WARP (BAT)', type: 'PREMIUM', costUSD: 0.99, costCrypto: '0.2 TON', desc: 'Instantly bypass cooldown AND deposits 12h of Bat yield to your wallet.', icon: '⏳', color: '#a855f7' },
-    { id: 'tw_dolphin', name: 'TIME-WARP (DOLPHIN)', type: 'PREMIUM', costUSD: 1.99, costCrypto: '0.4 TON', desc: 'Instantly bypass cooldown AND deposits 10h of Dolphin yield to your wallet.', icon: '⌛', color: '#d946ef' },
-    { id: 'tw_apex', name: 'TIME-WARP (APEX)', type: 'PREMIUM', costUSD: 9.99, costCrypto: '2.0 TON', desc: 'Instantly bypass cooldown AND deposits 4h of God Eye yield to your wallet.', icon: '🌌', color: '#f43f5e' }
-  ];
+const CONSUMABLES = [
+  // 🦇 BATS (Energy)
+  { id: 'c_energy', name: 'ENERGY CELL', type: 'BAT', costRP: 1000, qty: 1, desc: 'Instantly recharges Scout/Bat/Vampire rigs. Bypasses 12h cooldown.', icon: '🔋', color: '#3b82f6' },
+  { id: 'c_energy_bulk', name: 'BATTERY BUNDLE', type: 'BAT', costRP: 2500, qty: 3, desc: '3x Energy Cells. Save 16% on bulk purchase.', icon: '📦', color: '#3b82f6' },
+  
+  // 🐬 DOLPHINS (Oxygen)
+  { id: 'c_o2', name: 'O2 TANK REFILL', type: 'DOLPHIN', costRP: 5000, qty: 1, desc: 'Instantly pressurizes Diver/Surfer/Alliance rigs. Bypasses 10h/8h cooldown.', icon: '🤿', color: '#06b6d4' },
+  { id: 'c_o2_bulk', name: 'DEEP DIVE CRATE', type: 'DOLPHIN', costRP: 13500, qty: 3, desc: '3x O2 Refills. Save 10% on bulk purchase.', icon: '🌊', color: '#06b6d4' },
+  
+  // 👁️ APEX (Thermal)
+  { id: 'c_cryo', name: 'LIQUID NITROGEN', type: 'APEX', costRP: 50000, qty: 1, desc: 'Instantly cools Apex Tier hardware. Bypasses strict God Eye cooldowns.', icon: '❄️', color: '#fbbf24' },
+  { id: 'c_cryo_bulk', name: 'CRYO-CHAMBER', type: 'APEX', costRP: 135000, qty: 3, desc: '3x Liquid Nitrogen tanks. Save 10% on bulk purchase.', icon: '🧊', color: '#fbbf24' },
+  
+  // 💉 NEURAL INJECTIONS (Your Authentic Boosters)
+  { id: 'cloud_relay_24h', name: 'CLOUD RELAY (24H)', type: 'BOOST', costRP: 500, qty: 1, desc: 'Maintains 100% mining rate while app is closed for 24 hours.', icon: '☁️', color: '#a855f7' },
+  { id: 'cloud_relay_3d', name: 'CLOUD RELAY (3 DAYS)', type: 'BOOST', costRP: 1350, qty: 1, desc: 'Maintains 100% mining rate while app is closed for 72 hours.', icon: '🌥️', color: '#a855f7' },
+  { id: 'cloud_relay_7d', name: 'HEAVY RELAY (7 DAYS)', type: 'BOOST', costRP: 2800, qty: 1, desc: 'Set it and forget it. 168 hours of uninterrupted offline mining.', icon: '🌩️', color: '#a855f7' },
+  { id: 'signal_booster_1h', name: 'SIGNAL BOOSTER (1H)', type: 'BOOST', costRP: 200, qty: 1, desc: '+20% mining speed for 1 hour. Requires active uplink.', icon: '📡', color: '#10b981' },
+  { id: 'botnet_injection', name: 'BOTNET INJECTION', type: 'BOOST', costRP: 1000, qty: 1, desc: 'Doubles the RP yield from your active referrals for 24 hours.', icon: '🦠', color: '#ef4444' },
+
+  // 🚨 PREMIUM CONTRABAND (The Whale Exploits - Fiat/Crypto)
+  { id: 'tw_bat', name: 'TIME-WARP (BAT)', type: 'PREMIUM', costUSD: 0.99, costCrypto: '0.2 TON', desc: 'Instantly bypass cooldown AND deposits 12h of Bat yield to your wallet.', icon: '⏳', color: '#a855f7' },
+  { id: 'tw_dolphin', name: 'TIME-WARP (DOLPHIN)', type: 'PREMIUM', costUSD: 1.99, costCrypto: '0.4 TON', desc: 'Instantly bypass cooldown AND deposits 10h of Dolphin yield to your wallet.', icon: '⌛', color: '#d946ef' },
+  { id: 'tw_apex', name: 'TIME-WARP (APEX)', type: 'PREMIUM', costUSD: 9.99, costCrypto: '2.0 TON', desc: 'Instantly bypass cooldown AND deposits 4h of God Eye yield to your wallet.', icon: '🌌', color: '#f43f5e' }
+];
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
