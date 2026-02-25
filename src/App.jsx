@@ -249,26 +249,36 @@ function App() {
 
   // --- 2. TELEMETRY ENGINE (The "Ghost" Collector) ---
   useEffect(() => {
-    // 🚨 FIX: Removed the "if MINING" lock so DePIN/Map features work 24/7!
-    const collectSignal = async () => {
-      // A. Get Network Stats
-      const netStats = await TelemetryService.getNetworkStats();
-      setSignalStrength(netStats.type === 'wifi' || netStats.type === '4g' ? 'STRONG' : 'WEAK');
-
-      // B. Get Location (H3 Index)
-      // Note: This might ask user for permission. If denied, it returns null.
+    // 1. ONE-TIME LOCATION FETCH (Never loops!)
+    const fetchLocation = async () => {
       try {
-         // We only ask for location once per session to avoid annoying the user
-         if (!locationData) {
-            const loc = await LocationService.getHexId();
-            if (loc) {
-              setLocationData(loc);
-              // Simulate fetching "Nodes in this City" from DB
-              setCityNodeCount(Math.floor(Math.random() * 500) + 100); 
-            }
+         const loc = await LocationService.getHexId();
+         if (loc) {
+           setLocationData(loc);
+           setCityNodeCount(Math.floor(Math.random() * 500) + 100); 
+         } else {
+           // 🚨 FALLBACK: If user denies, give dummy data so the app survives!
+           setLocationData("RESTRICTED_ZONE"); 
+           setCityNodeCount(42);
          }
       } catch (e) {
-         console.log("Loc Service Silent Fail");
+         console.warn("⚠️ Loc Service Blocked by Telegram. Using Fallback.");
+         // 🚨 FALLBACK: Crucial for Telegram Mini Apps!
+         setLocationData("RESTRICTED_ZONE"); 
+         setCityNodeCount(42);
+      }
+    };
+
+    // Trigger location fetch exactly ONCE
+    fetchLocation();
+
+    // 2. REPEATING SIGNAL FETCH
+    const collectSignal = async () => {
+      try {
+         const netStats = await TelemetryService.getNetworkStats();
+         setSignalStrength(netStats.type === 'wifi' || netStats.type === '4g' ? 'STRONG' : 'WEAK');
+      } catch (e) {
+         setSignalStrength('WEAK'); // Fallback signal
       }
     };
     
@@ -278,8 +288,8 @@ function App() {
     const signalInterval = setInterval(collectSignal, 30000);
     return () => clearInterval(signalInterval);
     
-  // 🚨 FIX: Removed 'status' from the dependency array so it doesn't unnecessarily re-trigger when mining toggles
-  }, [locationData]);
+  // 🚨 FIX: Empty array! This guarantees the hook only mounts ONCE and never loops.
+  }, []);
 
   // --- 3. HEARTBEAT & SYNC LOOP (The "Proof of Life") ---
   useEffect(() => {
@@ -366,17 +376,15 @@ function App() {
   };
 
   // --- BLACK MARKET: BUY CONSUMABLES ---
-  const buyBlackMarketItem = async (item) => {
+  const buyBlackMarketItem = async (item, autoDeploy = false) => {
       // 1. Handle Fiat/Crypto Gateway
       if (item.type === 'PREMIUM') {
-          // showToast("⚠️ TON Web3 Gateway Initializing soon...");
           console.log(`Routing to crypto payment for ${item.costCrypto}...`);
           return;
       }
 
       // 2. Check RP Balance
       if (balanceRef.current < item.costRP) {
-          // showToast(`⚠️ INSUFFICIENT RP. NEED ${item.costRP.toLocaleString()}.`);
           console.log(`Not enough RP for ${item.name}`);
           return;
       }
@@ -387,32 +395,57 @@ function App() {
       balanceRef.current = newBalance;
 
       // 4. Update the Backpack (JSON Object)
-      // Extract the base ID (e.g., 'c_o2_bulk' becomes 'c_o2') to stack them properly
       const baseId = item.id.replace('_bulk', ''); 
       
+      // Math: Add the purchased amount. If auto-deploying, instantly consume 1!
+      const newQty = (consumables[baseId] || 0) + item.qty;
+      const finalQty = autoDeploy ? newQty - 1 : newQty;
+
       const updatedConsumables = {
           ...consumables,
-          [baseId]: (consumables[baseId] || 0) + item.qty
+          [baseId]: finalQty
       };
       setConsumables(updatedConsumables);
 
-      // 5. Save to Supabase JSONB column
-      const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      // 5. Prepare Database Payload
+      const dbUpdate = { 
+          balance: newBalance, 
+          consumables: updatedConsumables 
+      };
+
+      // 6. 🚨 AUTO-DEPLOY LOGIC 🚨
+      if (autoDeploy) {
+          if (item.type === 'BAT' || item.type === 'DOLPHIN' || item.type === 'APEX') {
+              setIsOverheated(false);
+              setCooldownUntil(null);
+              setGodModeElapsed(0);
+              godModeRef.current = 0;
+              setStatus('IDLE');
+              dbUpdate.cooldown_until = null; 
+              console.log(`✅ ${item.name} Auto-Deployed: System Restored.`);
+          } 
+          else if (item.id.includes('signal_booster')) {
+              boosterRef.current = Date.now() + (1 * 60 * 60 * 1000);
+              console.log(`📡 Signal Booster Active for 1 Hour!`);
+          } 
+          else if (item.id.includes('botnet_injection')) {
+              botnetRef.current = Date.now() + (24 * 60 * 60 * 1000);
+              console.log(`🦠 Botnet Active for 24 Hours!`);
+          }
+      }
+
+      // 7. Save to Supabase
+      const safeUserId = (typeof currentUser !== 'undefined' && currentUser?.id) || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
       if (safeUserId) {
-          const { error } = await supabase.from('users').update({
-              balance: newBalance,
-              consumables: updatedConsumables
-          }).eq('id', safeUserId);
-          
+          const { error } = await supabase.from('users').update(dbUpdate).eq('id', safeUserId);
           if (!error) {
-              // showToast(`✅ ACQUIRED: ${item.qty}x ${item.name}`);
-              console.log("Saved to DB:", updatedConsumables);
+              console.log(`✅ Purchase Saved. Auto-Deploy: ${autoDeploy}`);
           } else {
               console.error("DB Save Error:", error);
           }
       }
   };
-  
+
   // --- INVENTORY: DEPLOY CONSUMABLE ---
   const deployConsumable = async (item) => {
       const baseId = item.id.replace('_bulk', ''); // Safety check

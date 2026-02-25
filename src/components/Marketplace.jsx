@@ -6,7 +6,7 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
   const [confirmItem, setConfirmItem] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
 
-  const executePurchase = async () => {
+  const executePurchase = async (autoDeploy = false) => {
     if (!confirmItem) return;
     setLoadingId(confirmItem.id);
     
@@ -14,7 +14,7 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
     if (confirmItem.type === 'RIG' || confirmItem.type === 'GOD') {
         await onBuyItem(confirmItem);
     } else {
-        await buyBlackMarketItem(confirmItem);
+        await buyBlackMarketItem(confirmItem, autoDeploy); // Passes the flag!
     }
     
     setLoadingId(null);
@@ -151,25 +151,51 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
                  </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                 <button 
-                    onClick={() => setConfirmItem(null)}
-                    className="py-3 rounded bg-gray-800 text-gray-400 font-bold text-[10px] hover:bg-gray-700 flex items-center justify-center tracking-widest"
-                 >
-                    <X size={14} className="mr-1"/> CANCEL
-                 </button>
-                 <button 
-                    onClick={executePurchase}
-                    disabled={loadingId === confirmItem.id}
-                    className="py-3 rounded bg-white text-black font-bold text-[10px] hover:bg-cyan-400 hover:text-black flex items-center justify-center tracking-widest transition-colors"
-                 >
-                    {loadingId === confirmItem.id ? (
-                       <span className="animate-pulse">PROCESSING...</span>
-                    ) : (
-                       <><Check size={14} className="mr-1"/> CONFIRM</>
-                    )}
-                 </button>
-              </div>
+              {/* 🚨 DYNAMIC BUTTON LAYOUT */}
+              {(confirmItem.type === 'RIG' || confirmItem.type === 'GOD') ? (
+                 // --- RIG BUTTONS (Standard Cancel / Confirm) ---
+                 <div className="grid grid-cols-2 gap-3 mt-2">
+                    <button 
+                       onClick={() => setConfirmItem(null)}
+                       className="py-3 rounded bg-gray-800 text-gray-400 font-bold text-[10px] hover:bg-gray-700 flex items-center justify-center tracking-widest"
+                    >
+                       <X size={14} className="mr-1"/> CANCEL
+                    </button>
+                    <button 
+                       onClick={() => executePurchase(false)}
+                       disabled={loadingId === confirmItem.id}
+                       className="py-3 rounded bg-white text-black font-bold text-[10px] hover:bg-cyan-400 hover:text-black flex items-center justify-center tracking-widest transition-colors"
+                    >
+                       {loadingId === confirmItem.id ? 'PROCESSING...' : <><Check size={14} className="mr-1"/> CONFIRM</>}
+                    </button>
+                 </div>
+              ) : (
+                 // --- CONSUMABLE BUTTONS (Store vs Inject) ---
+                 <div className="flex flex-col space-y-3 mt-2">
+                    <div className="grid grid-cols-2 gap-3">
+                       <button 
+                          onClick={() => executePurchase(false)} // false = Stash
+                          disabled={loadingId === confirmItem.id}
+                          className="py-3 rounded bg-gray-800 text-gray-300 border border-gray-600 font-bold text-[9px] hover:bg-gray-700 hover:text-white flex items-center justify-center tracking-widest transition-colors"
+                       >
+                          {loadingId === confirmItem.id ? '...' : 'BUY & STASH'}
+                       </button>
+                       <button 
+                          onClick={() => executePurchase(true)} // true = Deploy Now
+                          disabled={loadingId === confirmItem.id}
+                          className="py-3 rounded bg-cyan-900/50 text-cyan-400 border border-cyan-500 font-bold text-[9px] hover:bg-cyan-400 hover:text-black flex items-center justify-center tracking-widest transition-colors shadow-[0_0_10px_rgba(34,211,238,0.3)]"
+                       >
+                          {loadingId === confirmItem.id ? 'PROCESSING...' : 'BUY & INJECT'}
+                       </button>
+                    </div>
+                    <button 
+                       onClick={() => setConfirmItem(null)}
+                       className="py-2 rounded text-gray-500 font-bold text-[10px] hover:text-white flex items-center justify-center tracking-widest"
+                    >
+                       <X size={14} className="mr-1"/> CANCEL
+                    </button>
+                 </div>
+              )}
 
            </div>
         </div>
