@@ -461,34 +461,36 @@ function App() {
         }
         
         // 2. TICK UP NORMALLY
-        godModeRef.current += 1; // Assuming your interval is 1000ms (1 second)
+        // Note: Interval is 100ms (10x a second), so we tick up by 0.1!
+        godModeRef.current += 0.1; 
         setGodModeElapsed(Math.floor(godModeRef.current));
         
-        // 3. 🚨 OPTIMISTIC UI: Visually tick the balance up on the screen!
-        // Make sure BASE_MINING_RATE matches your actual base rate variable!
-        const tickReward = (BASE_MINING_RATE * effectiveMultiplier) + (activeReferrals * REFERRAL_RATE_PER_TICK);
-        setBalance(prev => prev + tickReward);
-        balanceRef.current += tickReward;
+        // --- 3. UNIFIED OPTIMISTIC UI MATH ---
+        
+        // A. Start with the smart multiplier (drops to 0 if overheated)
+        let tickMult = effectiveMultiplier;
 
-        // 2. 📡 APPLY SIGNAL BOOSTER INSTANTLY (+20%)
+        // B. 📡 APPLY SIGNAL BOOSTER INSTANTLY (+20%)
         if (boosterRef.current && boosterRef.current > now) {
-            currentMult *= 1.2;
+            tickMult *= 1.2;
         }
 
-        const miningEarned = (BASE_MINING_RATE * currentMult * loadFactor * HALVING_MULTIPLIER) / 10;
+        // C. Calculate Mining Payout (Divide by 10 because 100ms is 1/10th of a second)
+        const miningEarned = (BASE_MINING_RATE * tickMult * loadFactor * HALVING_MULTIPLIER) / 10;
         
-        // 3. 🦠 APPLY BOTNET INJECTION INSTANTLY (2x Yield)
+        // D. 🦠 APPLY BOTNET INJECTION INSTANTLY (2x Yield)
         let refMult = 1.0;
         if (botnetRef.current && botnetRef.current > now) {
             refMult = 2.0;
         }
-
-        const referralEarned = (activeReferrals * REFERRAL_RATE_PER_TICK * refMult);
         
-        // 4. Final Math
+        // Calculate Referral Payout (Divide by 10 for the 100ms tick)
+        const referralEarned = (activeReferrals * REFERRAL_RATE_PER_TICK * refMult) / 10;
+        
+        // E. Final Math Application
         const totalEarned = miningEarned + referralEarned;
-
-        const newBal = parseFloat((balanceRef.current + totalEarned).toFixed(3));
+        const newBal = parseFloat((balanceRef.current + totalEarned).toFixed(4));
+        
         setBalance(newBal);
         balanceRef.current = newBal;
       }, 100); 
