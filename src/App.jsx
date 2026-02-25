@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Terminal, Users, ShoppingCart, DollarSign, MapPin, Signal, Wallet, AlertTriangle } from 'lucide-react'
+import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle } from 'lucide-react'
 
 // --- COMPONENTS ---
 import MiningRig from './components/MiningRig'

@@ -46,12 +46,12 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
         </div>
       </div>
 
-      {/* SECTION 2: HARDWARE (The old "Mint" Rigs) */}
-      <div>
-        <h3 className="text-sm font-bold tracking-widest text-cyan-400 mb-3 flex items-center">
+      {/* SECTION 2: HARDWARE (The Cinematic Frame-Filling Look) */}
+      <div className="mt-8">
+        <h3 className="text-sm font-bold tracking-widest text-cyan-400 mb-4 flex items-center">
           <span className="mr-2">⚡</span> HARDWARE UPGRADES
         </h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-6"> {/* Changed from grid to a vertical stack with nice spacing */}
           {/* We slice(1) to hide the free Scout tier from the shop */}
           {TIERS.slice(1).map(tier => {
              // Check if the user already owns this specific rig
@@ -59,25 +59,42 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
              const isAffordable = typeof tier.threshold === 'number' && balance >= tier.threshold;
 
              return (
-               <div key={tier.id} className="bg-gray-900/50 border border-gray-800 p-3 rounded-lg flex flex-col items-center text-center">
-                  <img src={tier.image} alt={tier.name} className="w-16 h-16 object-contain mb-2 drop-shadow-[0_0_10px_rgba(34,211,238,0.3)]" />
-                  <h4 className="font-bold text-[10px] tracking-widest" style={{ color: tier.color }}>{tier.name}</h4>
-                  <p className="text-[8px] text-gray-500 mb-2">{tier.multiplier}x MULTIPLIER</p>
+               <div key={tier.id} className="relative bg-black border border-gray-800 rounded-xl overflow-hidden flex flex-col shadow-[0_4px_20px_rgba(0,0,0,0.5)]">
                   
-                  <button 
-                     // Trigger your old Rig buying function!
-                     onClick={() => !isOwned && onBuyItem(tier)}
-                     disabled={isOwned || (!isOwned && !isAffordable)}
-                     className={`w-full py-1.5 text-[9px] font-bold rounded tracking-widest transition-colors ${
-                        isOwned ? 'bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed' :
-                        isAffordable ? 'bg-cyan-900/30 border border-cyan-500 text-cyan-400 hover:bg-cyan-800/50' :
-                        'bg-red-900/20 border border-red-900 text-red-700 cursor-not-allowed'
-                     }`}
-                  >
-                     {isOwned ? 'INTEGRATED' : 
-                      typeof tier.threshold === 'number' ? `${tier.threshold.toLocaleString()} RP` : 
-                      tier.threshold}
-                  </button>
+                  {/* Background Glow Effect */}
+                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-gray-900/50 to-black z-0"></div>
+                  
+                  {/* Frame-Filling Image */}
+                  <div className="relative z-10 w-full h-48 flex items-center justify-center p-6 mt-2">
+                    <img 
+                       src={tier.image} 
+                       alt={tier.name} 
+                       className="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(34,211,238,0.2)] hover:scale-105 transition-transform duration-500" 
+                    />
+                  </div>
+                  
+                  {/* Premium Info & Buy Bar */}
+                  <div className="relative z-10 p-4 border-t border-gray-800 bg-gray-900/80 backdrop-blur-sm flex justify-between items-center">
+                    <div>
+                      <h4 className="font-black text-sm tracking-widest uppercase" style={{ color: tier.color }}>{tier.name}</h4>
+                      <p className="text-[10px] text-gray-400 mt-1 font-mono">{tier.multiplier}x MULTIPLIER • {tier.bandwidth} GB/s</p>
+                    </div>
+                    
+                    <button 
+                       onClick={() => !isOwned && onBuyItem(tier)}
+                       disabled={isOwned || (!isOwned && !isAffordable)}
+                       className={`px-5 py-2.5 text-[10px] font-black tracking-widest rounded transition-all duration-300 ${
+                          isOwned ? 'bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed' :
+                          isAffordable ? 'bg-cyan-900/50 border border-cyan-500 text-cyan-400 hover:bg-cyan-400 hover:text-black shadow-[0_0_10px_rgba(34,211,238,0.3)]' :
+                          'bg-red-900/20 border border-red-900 text-red-700 cursor-not-allowed'
+                       }`}
+                    >
+                       {isOwned ? 'INTEGRATED' : 
+                        typeof tier.threshold === 'number' ? `${tier.threshold.toLocaleString()} RP` : 
+                        tier.threshold}
+                    </button>
+                  </div>
+                  
                </div>
              );
           })}
