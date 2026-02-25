@@ -412,6 +412,50 @@ function App() {
           }
       }
   };
+  
+  // --- INVENTORY: DEPLOY CONSUMABLE ---
+  const deployConsumable = async (item) => {
+      const baseId = item.id.replace('_bulk', ''); // Safety check
+      if (!consumables[baseId] || consumables[baseId] <= 0) return false;
+
+      // 1. Deduct from backpack instantly
+      const updatedConsumables = {
+          ...consumables,
+          [baseId]: consumables[baseId] - 1
+      };
+      setConsumables(updatedConsumables);
+
+      // 2. Prepare Database Payload
+      const dbUpdate = { consumables: updatedConsumables };
+
+      // 3. Apply the specific item effect!
+      if (item.type === 'BAT' || item.type === 'DOLPHIN' || item.type === 'APEX') {
+          // It's a cooling/recharge item! Reset the rig.
+          setIsOverheated(false);
+          setCooldownUntil(null);
+          setGodModeElapsed(0);
+          godModeRef.current = 0;
+          setStatus('IDLE');
+          dbUpdate.cooldown_until = null; // Tell Supabase to unlock them
+          console.log(`✅ ${item.name} Deployed: System Restored.`);
+      } 
+      else if (item.id === 'signal_booster_1h') {
+          boosterRef.current = Date.now() + (1 * 60 * 60 * 1000);
+          console.log(`📡 Signal Booster Active for 1 Hour!`);
+      } 
+      else if (item.id === 'botnet_injection') {
+          botnetRef.current = Date.now() + (24 * 60 * 60 * 1000);
+          console.log(`🦠 Botnet Active for 24 Hours!`);
+      }
+
+      // 4. Save to Database
+      const safeUserId = (typeof currentUser !== 'undefined' && currentUser?.id) || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (safeUserId) {
+          await supabase.from('users').update(dbUpdate).eq('id', safeUserId);
+      }
+      
+      return true; // Tells the UI the deployment was a success
+  };
 
   // --- 4. MINING TOGGLE ---
   const toggleMining = () => {
@@ -768,6 +812,9 @@ function App() {
               balance={balance} 
               currentTier={currentTier} 
               referralCount={referralCount}
+              consumables={consumables} 
+              CONSUMABLES={CONSUMABLES} 
+              deployConsumable={deployConsumable} // 🚨 NEW: Passing the trigger down!
            />
         ) : tab === 'MARKET' ? (
            <Marketplace 
