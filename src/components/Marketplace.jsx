@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Shield, ShoppingBag, X, Check } from 'lucide-react';
 
 const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, buyBlackMarketItem }) => {
-  // Modal State for Rigs
+  // Modal State for BOTH Rigs and Consumables
   const [confirmItem, setConfirmItem] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
 
@@ -10,8 +10,12 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
     if (!confirmItem) return;
     setLoadingId(confirmItem.id);
     
-    // Call the original Rig buying function from App.jsx
-    await onBuyItem(confirmItem);
+    // 🚨 SMART ROUTING: Check if it's a Rig or a Consumable!
+    if (confirmItem.type === 'RIG' || confirmItem.type === 'GOD') {
+        await onBuyItem(confirmItem);
+    } else {
+        await buyBlackMarketItem(confirmItem);
+    }
     
     setLoadingId(null);
     setConfirmItem(null);
@@ -44,7 +48,9 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
               </div>
               
               <button 
-                onClick={() => buyBlackMarketItem(item)}
+                // 🚨 CHANGED: Now opens the Modal instead of buying instantly!
+                onClick={() => setConfirmItem(item)}
+                disabled={item.type !== 'PREMIUM' && balance < item.costRP}
                 className={`px-3 py-2 rounded text-[9px] font-black tracking-widest border transition-all ${
                   item.type === 'PREMIUM' 
                     ? 'bg-purple-900/30 border-purple-500 text-purple-400 hover:bg-purple-800/50' 
@@ -68,7 +74,6 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
         
         <div className="grid grid-cols-2 gap-3">
           {TIERS.slice(1).map((tier) => {
-             // 🚨 NEW LOGIC: Using tier variables instead of old items
              const isOwned = userInventory && userInventory.includes(`tier_${tier.id}`);
              const canAfford = typeof tier.threshold === 'number' && balance >= tier.threshold;
              const rawPrice = typeof tier.threshold === 'number' ? tier.threshold : parseInt(tier.threshold.toString().replace(/[^0-9]/g, ''));
@@ -77,24 +82,18 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
                <div 
                  key={tier.id} 
                  onClick={() => {
-                    // Stop owned clicks, but allow unowned clicks to open Modal!
                     if (isOwned) return;
-                    setConfirmItem(tier);
+                    setConfirmItem(tier); // Opens the Modal
                  }}
                  className={`relative rounded-xl flex flex-col overflow-hidden transition-all duration-300 ${
                    isOwned ? 'cursor-default' : 'cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:-translate-y-1'
                  } ${!isOwned && !canAfford ? 'opacity-75 grayscale' : ''}`}
                >
-                 {/* Image Section - TALLER PORTRAIT */}
                  <div className={`h-56 w-full relative ${isOwned ? 'bg-gray-900' : 'bg-black'}`}>
-                   {/* Background Glow */}
                    <div className={`absolute inset-0 blur-2xl opacity-40 ${isOwned ? 'bg-green-900' : canAfford ? 'bg-cyan-900' : 'bg-gray-900'}`}></div>
-                   
-                   {/* IMAGE - FILLS FRAME */}
                    <img src={tier.image} alt={tier.name} className="w-full h-full object-cover z-10 relative drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
                  </div>
 
-                 {/* Text Overlay Section - FULL WIDTH BOTTOM OVERLAY */}
                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black via-black/90 to-transparent pt-8 z-20">
                    <h3 className="text-[10px] font-black tracking-widest uppercase mb-1 truncate" style={{ color: tier.color }}>{tier.name}</h3>
                    <div className="flex justify-between items-center">
@@ -107,7 +106,6 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
                    </div>
                  </div>
 
-                 {/* Owned / Lock Overlay */}
                  {isOwned && (
                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-30">
                      <span className="text-[10px] text-green-400 font-black tracking-[0.2em] border border-green-500 px-3 py-1 rounded bg-green-900/40 transform -rotate-12 shadow-xl">
@@ -115,8 +113,6 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
                      </span>
                    </div>
                  )}
-                 
-                 {/* BORDER OVERLAY - For clean edges */}
                  <div className={`absolute inset-0 border-2 rounded-xl z-40 pointer-events-none ${isOwned ? 'border-green-500/50' : canAfford ? 'border-cyan-500/50' : 'border-gray-800'}`}></div>
                </div>
              );
@@ -124,43 +120,48 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
         </div>
       </div>
 
-      {/* --- CONFIRMATION MODAL --- */}
+      {/* --- UNIVERSAL CONFIRMATION MODAL --- */}
       {confirmItem && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/90 backdrop-blur-sm">
            <div className="bg-gray-900 border border-cyan-500 rounded-lg p-6 w-full max-w-sm shadow-2xl relative overflow-hidden">
-            
-              {/* Scanline Effect */}
               <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/50 animate-pulse"></div>
 
-              <h3 className="text-lg font-bold text-white mb-4 flex items-center">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center uppercase tracking-widest">
                  <ShoppingBag size={18} className="mr-2 text-cyan-400"/> CONFIRM ACQUISITION
               </h3>
 
-              <div className="bg-black/50 p-4 rounded mb-6 border border-gray-800">
-                 <div className="flex justify-between items-center mb-2">
-                    <span className="text-3xl">{confirmItem.icon}</span>
-                    <div className="text-right">
-                       <p className="text-[10px] text-gray-500 uppercase">Item Cost</p>
-                       <p className="text-xl font-mono text-cyan-400 font-bold">
-                         {typeof confirmItem.threshold === 'number' ? confirmItem.threshold.toLocaleString() : confirmItem.threshold} RP
-                       </p>
-                    </div>
+              <div className="bg-black/50 p-4 rounded mb-6 border border-gray-800 text-center">
+                 <div className="text-4xl mb-3">{confirmItem.icon}</div>
+                 <p className="text-sm font-black tracking-widest mb-2" style={{ color: confirmItem.color }}>{confirmItem.name}</p>
+                 
+                 <div className="inline-block bg-gray-900 border border-gray-700 rounded px-4 py-2 mb-3">
+                    <p className="text-[8px] text-gray-500 uppercase tracking-widest">Total Cost</p>
+                    <p className="text-lg font-mono text-cyan-400 font-bold">
+                      {/* 🚨 DYNAMIC PRICE LOGIC: Checks Premium vs RP vs Hardware Thresholds */}
+                      {confirmItem.type === 'PREMIUM' ? confirmItem.costCrypto : 
+                       confirmItem.costRP ? `${confirmItem.costRP.toLocaleString()} RP` : 
+                       typeof confirmItem.threshold === 'number' ? `${confirmItem.threshold.toLocaleString()} RP` : 
+                       confirmItem.threshold}
+                    </p>
                  </div>
-                 <p className="text-sm font-bold text-white" style={{ color: confirmItem.color }}>{confirmItem.name}</p>
-                 <p className="text-xs text-gray-400 mt-1">Permanently unlocks {confirmItem.multiplier}x base mining power.</p>
+                 
+                 <p className="text-[10px] text-gray-400">
+                    {/* 🚨 DYNAMIC DESC: Shows item desc OR rig stats */}
+                    {confirmItem.desc || `Permanently unlocks ${confirmItem.multiplier}x base mining power.`}
+                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                  <button 
                     onClick={() => setConfirmItem(null)}
-                    className="py-3 rounded bg-gray-800 text-gray-400 font-bold text-xs hover:bg-gray-700 flex items-center justify-center tracking-widest"
+                    className="py-3 rounded bg-gray-800 text-gray-400 font-bold text-[10px] hover:bg-gray-700 flex items-center justify-center tracking-widest"
                  >
                     <X size={14} className="mr-1"/> CANCEL
                  </button>
                  <button 
                     onClick={executePurchase}
                     disabled={loadingId === confirmItem.id}
-                    className="py-3 rounded bg-white text-black font-bold text-xs hover:bg-cyan-400 flex items-center justify-center tracking-widest transition-colors"
+                    className="py-3 rounded bg-white text-black font-bold text-[10px] hover:bg-cyan-400 hover:text-black flex items-center justify-center tracking-widest transition-colors"
                  >
                     {loadingId === confirmItem.id ? (
                        <span className="animate-pulse">PROCESSING...</span>
