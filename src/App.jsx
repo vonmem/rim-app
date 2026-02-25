@@ -253,18 +253,18 @@ function App() {
     const fetchLocation = async () => {
       try {
          const loc = await LocationService.getHexId();
-         if (loc) {
+         if (loc && loc.lat && loc.lng) {
            setLocationData(loc);
            setCityNodeCount(Math.floor(Math.random() * 500) + 100); 
          } else {
-           // 🚨 FALLBACK: If user denies, give dummy data so the app survives!
-           setLocationData("RESTRICTED_ZONE"); 
+           // 🚨 FALLBACK: Real GPS coordinates so the Map doesn't crash! (London)
+           setLocationData({ lat: 51.5074, lng: -0.1278, hex: "8a195da4992ffff" }); 
            setCityNodeCount(42);
          }
       } catch (e) {
-         console.warn("⚠️ Loc Service Blocked by Telegram. Using Fallback.");
+         console.warn("⚠️ Loc Service Blocked by Telegram. Using Fallback Coordinates.");
          // 🚨 FALLBACK: Crucial for Telegram Mini Apps!
-         setLocationData("RESTRICTED_ZONE"); 
+         setLocationData({ lat: 51.5074, lng: -0.1278, hex: "8a195da4992ffff" }); 
          setCityNodeCount(42);
       }
     };
