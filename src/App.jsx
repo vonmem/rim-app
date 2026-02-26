@@ -512,7 +512,7 @@ function App() {
         
         // --- UNIVERSAL TIER LIMITS & COOLDOWN ENGINE ---
         // 🚨 TEST OVERRIDE: Change 3600 to 2 for quick testing!
-        const timeMultiplier = 2; // Keep at 3600 for production!
+        const timeMultiplier = 3600; // Keep at 3600 for production!
         const DAILY_LIMIT_SECONDS = currentTier.limitHours * timeMultiplier; 
         const COOLDOWN_HOURS = 24 - currentTier.limitHours; 
 
