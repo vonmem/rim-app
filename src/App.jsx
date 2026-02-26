@@ -171,8 +171,12 @@ function App() {
         
         if (data) {
           // EXISTING USER: Load their saved data
-          setBalance(data.balance);
-          balanceRef.current = data.balance;
+          
+          // 🚨 FIRST-AID FIX: If balance is null/NaN, default to 0 to save the app!
+          const safeBalance = Number(data.balance) || 0; 
+          
+          setBalance(safeBalance);
+          balanceRef.current = safeBalance;
           setReferralCount(0); // In prod, fetch real count
           
           // Load their inventory (Rigs/NFTs)
@@ -634,9 +638,15 @@ function App() {
   };
 
   const handleBuyItem = async (item) => {
-    // 1. Check if they have enough balance
-    if (balanceRef.current < item.price) {
-      showToast("⚠️ INSUFFICIENT RP BITS. KEEP MINING.", "error");
+    // 1. 🚨 STRIP TEXT AND FIND THE REAL COST (Checks both price and threshold)
+    const rawCost = item.price !== undefined ? item.price : item.threshold;
+    // This turns "16,000,000 RP" into pure 16000000
+    const cost = typeof rawCost === 'number' ? rawCost : parseInt(String(rawCost).replace(/[^0-9]/g, ''), 10) || 0;
+
+    // 2. Check if they have enough balance
+    if (balanceRef.current < cost) {
+      // showToast("⚠️ INSUFFICIENT RP BITS. KEEP MINING.", "error");
+      console.log(`⚠️ INSUFFICIENT FUNDS. NEED ${cost} RP.`);
       return;
     }
 
@@ -644,48 +654,44 @@ function App() {
     const HOUR = 60 * 60 * 1000;
     const DAY = 24 * HOUR;
 
-    // 2. Pre-calculate the new balance (but don't show it visually yet)
-    const newBalance = balanceRef.current - item.price;
+    // 3. Pre-calculate the new balance safely
+    const newBalance = balanceRef.current - cost;
     
     // This payload will hold EXACTLY what we send to the database
     let updatePayload = { balance: newBalance };
 
-    // 3. Prepare the data based on what they are buying
+    // 4. Prepare the data based on what they are buying
     if (item.type === 'CONSUMABLE') {
       if (item.id === 'cloud_relay_24h') {
         const newTime = Math.max(now, relayExpiry || 0) + DAY;
         setRelayExpiry(newTime);
         localStorage.setItem('relayExpiry', newTime.toString());
-        updatePayload.relay_expiry = new Date(newTime).toISOString(); // timestamptz format!
-        
+        updatePayload.relay_expiry = new Date(newTime).toISOString(); 
       } else if (item.id === 'cloud_relay_3d') {
         const newTime = Math.max(now, relayExpiry || 0) + (3 * DAY);
         setRelayExpiry(newTime);
         localStorage.setItem('relayExpiry', newTime.toString());
-        updatePayload.relay_expiry = new Date(newTime).toISOString(); // timestamptz format!
-        
+        updatePayload.relay_expiry = new Date(newTime).toISOString(); 
       } else if (item.id === 'cloud_relay_7d') {
         const newTime = Math.max(now, relayExpiry || 0) + (7 * DAY);
         setRelayExpiry(newTime);
         localStorage.setItem('relayExpiry', newTime.toString());
-        updatePayload.relay_expiry = new Date(newTime).toISOString(); // timestamptz format!
-        
+        updatePayload.relay_expiry = new Date(newTime).toISOString(); 
       } else if (item.id === 'signal_booster_1h') {
         const newTime = Math.max(now, boosterExpiry || 0) + HOUR;
         setBoosterExpiry(newTime);
         localStorage.setItem('boosterExpiry', newTime.toString());
-        updatePayload.booster_expiry = newTime; // int8 format!
-        
+        updatePayload.booster_expiry = newTime; 
       } else if (item.id === 'botnet_injection') {
         const newTime = Math.max(now, botnetExpiry || 0) + DAY;
         setBotnetExpiry(newTime);
         localStorage.setItem('botnetExpiry', newTime.toString());
-        updatePayload.botnet_expiry = newTime; // int8 format!
+        updatePayload.botnet_expiry = newTime; 
       }
       
-    } else if (item.type === 'RIG') {
+    } else if (item.type === 'RIG' || item.type === 'GOD' || item.threshold) {
       if (inventory.includes(item.id)) {
-        showToast("⚠️ YOU ALREADY OWN THIS RIG.", "error");
+        // showToast("⚠️ YOU ALREADY OWN THIS RIG.", "error");
         return; 
       }
       const newInventory = [...inventory, item.id];
@@ -693,41 +699,40 @@ function App() {
       updatePayload.inventory = newInventory;
     }
 
-    // 4. 🚨 THE ATOMIC DATABASE UPDATE 🚨
-    // We send the new balance and the new items to Supabase at the EXACT SAME TIME
+    // 5. 🚨 THE ATOMIC DATABASE UPDATE 🚨
+    // Using safeUserId so it never fails on Telegram mobile
+    const safeUserId = (typeof user !== 'undefined' && user?.id) || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    
+    if (!safeUserId) {
+        console.error("❌ No User ID found!");
+        return;
+    }
+
     const { error } = await supabase
       .from('users')
       .update(updatePayload)
-      .eq('id', user.id);
+      .eq('id', safeUserId);
 
     // If Supabase rejects it, we stop everything and keep their money safe.
     if (error) {
       console.error("Purchase failed:", error.message);
-      showToast("❌ TRANSACTION FAILED. SERVER ERROR.", "error");
+      // showToast("❌ TRANSACTION FAILED. SERVER ERROR.", "error");
       return;
     }
 
-    // 5. ONLY if the database accepts it, we update the visual balance!
+    // 6. ONLY if the database accepts it, we update the visual balance!
     setBalance(newBalance);
     balanceRef.current = newBalance;
 
-    // 6. Show the Success Toast
-    if (item.type === 'RIG') {
-      showToast(`🦇 ${item.name} ACQUIRED! Multiplier Upgraded.`, "success");
+    // 7. Show the Success Toast
+    if (item.type === 'RIG' || item.type === 'GOD' || item.threshold) {
+      // showToast(`🦇 ${item.name} ACQUIRED! Multiplier Upgraded.`, "success");
+      console.log(`✅ RIG ACQUIRED: ${item.name}`);
     } else {
-      showToast(`✅ ${item.name} ACTIVATED!`, "success");
+      // showToast(`✅ ${item.name} ACTIVATED!`, "success");
+      console.log(`✅ CONSUMABLE ACTIVATED: ${item.name}`);
     }
   };
-
-  // 🚨 HIDE THE APP UNTIL SUPABASE LOADS THE INVENTORY
-  if (!user || !isDataLoaded) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-black text-cyan-500 font-mono">
-        <div className="w-16 h-16 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
-        <p className="tracking-[0.3em] text-sm animate-pulse">ESTABLISHING SECURE UPLINK...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-white font-mono overflow-hidden select-none relative">
