@@ -102,7 +102,7 @@ function App() {
   }, [relayExpiry, boosterExpiry, botnetExpiry]);
 
   // Telemetry State (The "Fog of War" Data)
-  const [locationData, setLocationData] = useState(null);
+  const [locationData, setLocationData] = useState({ lat: 51.5074, lng: -0.1278, hex: "8a195da4992ffff" });
   const [signalStrength, setSignalStrength] = useState('UNKNOWN');
   const [cityNodeCount, setCityNodeCount] = useState(0); // Simulated "Nodes in your city"
 
@@ -249,22 +249,29 @@ function App() {
 
   // --- 2. TELEMETRY ENGINE (The "Ghost" Collector) ---
   useEffect(() => {
-    // 1. ONE-TIME LOCATION FETCH (Never loops!)
+    // 1. ONE-TIME LOCATION FETCH
     const fetchLocation = async () => {
+      const fallback = { lat: 51.5074, lng: -0.1278, hex: "8a195da4992ffff" };
+
       try {
          const loc = await LocationService.getHexId();
-         if (loc && loc.lat && loc.lng) {
-           setLocationData(loc);
+         
+         // 🚨 CRITICAL MOBILE FIX: Catch 'latitude' vs 'lat' and force them to be Numbers
+         const safeLat = Number(loc?.lat || loc?.latitude);
+         const safeLng = Number(loc?.lng || loc?.longitude);
+
+         // Only set it if it's a real, valid number
+         if (!isNaN(safeLat) && !isNaN(safeLng) && safeLat !== 0) {
+           setLocationData({ lat: safeLat, lng: safeLng, hex: loc?.hex || "8a195da4992ffff" });
            setCityNodeCount(Math.floor(Math.random() * 500) + 100); 
          } else {
-           // 🚨 FALLBACK: Real GPS coordinates so the Map doesn't crash! (London)
-           setLocationData({ lat: 51.5074, lng: -0.1278, hex: "8a195da4992ffff" }); 
+           console.warn("⚠️ Invalid Mobile GPS format. Using Fallback.");
+           setLocationData(fallback); 
            setCityNodeCount(42);
          }
       } catch (e) {
-         console.warn("⚠️ Loc Service Blocked by Telegram. Using Fallback Coordinates.");
-         // 🚨 FALLBACK: Crucial for Telegram Mini Apps!
-         setLocationData({ lat: 51.5074, lng: -0.1278, hex: "8a195da4992ffff" }); 
+         console.warn("⚠️ Loc Service Blocked. Using Fallback.");
+         setLocationData(fallback); 
          setCityNodeCount(42);
       }
     };
