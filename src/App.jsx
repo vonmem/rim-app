@@ -515,11 +515,7 @@ function App() {
         const loadFactor = (Math.random() * 0.2) + 0.8; 
         
         // --- UNIVERSAL TIER LIMITS & COOLDOWN ENGINE ---
-        // 🚨 TEST OVERRIDE: Change 3600 to 2 for quick testing!
-        const timeMultiplier = 3600; // Keep at 3600 for production!
-        
-        // 🚨 THE FIX: Safe fallbacks in case currentTier is missing limitHours
-        // If limitHours is missing, we default to ~30 seconds (30 / 3600)
+        const timeMultiplier = 3600; 
         const safeLimitHours = currentTier?.limitHours || (30 / 3600); 
         const DAILY_LIMIT_SECONDS = safeLimitHours * timeMultiplier; 
         const COOLDOWN_HOURS = 24 - safeLimitHours; 
@@ -536,7 +532,6 @@ function App() {
                             || (typeof user !== 'undefined' && user?.id) 
                             || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
                             
-            // 🚨 BULLETPROOF MATH: Guarantees a real timestamp because COOLDOWN_HOURS is strictly a number now!
             const cooldownTime = Date.now() + (COOLDOWN_HOURS * 60 * 60 * 1000); 
             
             setCooldownUntil(prev => {
@@ -544,23 +539,20 @@ function App() {
                 return prev;
             });
 
-            // Force Supabase to save it and LOG THE RESULT
+            // 🚨 THE CRASH FIX: Convert the number to an ISO String for Supabase!
             if (safeUserId) {
                 supabase.from('users')
-                  .update({ cooldown_until: cooldownTime })
+                  .update({ cooldown_until: new Date(cooldownTime).toISOString() }) 
                   .eq('id', safeUserId)
                   .then(({ error }) => {
                      if (error) console.error("❌ DB SAVE FAILED:", error.message);
                      else console.log(`✅ RIG LOCKED IN DB UNTIL:`, new Date(cooldownTime).toLocaleTimeString());
                   });
-            } else {
-                console.error("❌ GHOST BUG: No User ID found. Could not save lock to DB!");
             }
             return; 
         }
         
         // 2. TICK UP NORMALLY
-        // Note: Interval is 100ms (10x a second), so we tick up by 0.1!
         godModeRef.current += 0.1; 
         setGodModeElapsed(Math.floor(godModeRef.current));
         

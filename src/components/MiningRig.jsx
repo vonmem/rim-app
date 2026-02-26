@@ -1,39 +1,52 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Eye } from 'lucide-react';
 
 const MiningRig = ({ status, currentTier, isOverheated, toggleMining }) => {
   const [shards, setShards] = useState([]);
   const shardInterval = useRef(null);
 
-  // --- VISUAL RAIN ENGINE ---
+  // --- VISUAL RAIN ENGINE (With Memory Leak Protection) ---
   useEffect(() => {
     if (status === 'MINING') {
-      // Start Rain
+      
+      // 1. Start Rain (Capped at 20 shards maximum)
       shardInterval.current = setInterval(() => {
-        const id = Math.random();
-        const left = Math.random() * 90 + 5; 
-        const duration = Math.random() * 1.5 + 0.5; 
-        const color = isOverheated ? '#EF4444' : (currentTier.color === '#FFFFFF' ? '#06b6d4' : currentTier.color);
-        
-        setShards(prev => [...prev, { id, left, duration, color }]);
-        
-        // Cleanup individual shard after animation
-        setTimeout(() => setShards(prev => prev.filter(s => s.id !== id)), duration * 1000);
+        setShards(prev => {
+          if (prev.length >= 20) return prev; // 🚨 Protects GPU from crashing
+          
+          const id = Math.random();
+          const left = Math.random() * 90 + 5; 
+          const duration = Math.random() * 1.5 + 0.5; 
+          const color = isOverheated ? '#EF4444' : (currentTier.color === '#FFFFFF' ? '#06b6d4' : currentTier.color);
+          
+          return [...prev, { id, left, duration, color, birth: Date.now() }];
+        });
       }, 300);
+
+      // 2. Safe Cleanup Sweeper
+      const cleanupInterval = setInterval(() => {
+         const now = Date.now();
+         setShards(prev => prev.filter(s => now - s.birth < s.duration * 1000));
+      }, 1000);
+
+      return () => {
+         clearInterval(shardInterval.current);
+         clearInterval(cleanupInterval);
+      };
+
     } else {
       // Stop Rain
       if (shardInterval.current) clearInterval(shardInterval.current);
       setShards([]);
     }
-
-    return () => clearInterval(shardInterval.current);
   }, [status, isOverheated, currentTier]);
 
   return (
     <div className="relative w-full flex flex-col items-center justify-center py-10 z-10">
       
-      {/* CSS Animations (Scoped) */}
+      {/* CSS Animations */}
       <style>{`
+        /* 🚨 FIX: Using scale only, avoiding translation overwrites */
         @keyframes ripple {
           0% { transform: scale(0.8); opacity: 0.6; border-width: 2px; }
           100% { transform: scale(2.5); opacity: 0; border-width: 0px; }
@@ -76,11 +89,11 @@ const MiningRig = ({ status, currentTier, isOverheated, toggleMining }) => {
            )}
         </div>
 
-        {/* 2. PULSING RINGS */}
+        {/* 2. PULSING RINGS (Restored perfectly) */}
         {status === 'MINING' && currentTier.id < 7.1 && (
           <>
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 rounded-full animate-[ripple_3s_infinite_linear] z-10 ${isOverheated ? 'border-red-500/50' : 'border-cyan-500/30'}`}></div>
-            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 border-2 rounded-full animate-[ripple_2s_infinite_linear_0.5s] z-10 ${isOverheated ? 'border-red-500/40' : 'border-cyan-400/20'}`}></div>
+            <div className={`absolute top-[10%] left-[10%] w-[80%] h-[80%] border-2 rounded-full animate-[ripple_3s_infinite_linear] z-10 pointer-events-none ${isOverheated ? 'border-red-500/50' : 'border-cyan-500/30'}`}></div>
+            <div className={`absolute top-[20%] left-[20%] w-[60%] h-[60%] border-2 rounded-full animate-[ripple_2s_infinite_linear_0.5s] z-10 pointer-events-none ${isOverheated ? 'border-red-500/40' : 'border-cyan-400/20'}`}></div>
           </>
         )}
         
