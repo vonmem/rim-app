@@ -207,7 +207,9 @@ function App() {
 
           // 👇 THE AMNESIA FIX: RESTORE OVERHEAT COOLDOWN STATE
           if (data.cooldown_until) {
-             const cooldownMs = parseInt(data.cooldown_until, 10);
+             // 🚨 CRITICAL FIX: Safely parse the DB String into a real millisecond number!
+             const cooldownMs = new Date(data.cooldown_until).getTime();
+             
              if (cooldownMs > Date.now()) {
                  // 🔒 The system is STILL cooling down! Force the locks!
                  setCooldownUntil(cooldownMs);
@@ -221,35 +223,7 @@ function App() {
           }
 
           // 👇 STEP B FIX: TELL THE APP WE ARE READY TO RENDER
-          setIsDataLoaded(true); 
-          
-        } else {
-          // NEW USER: Create account
-          let referrerId = null;
-          if (startParam && startParam.startsWith('ref_')) {
-             referrerId = parseInt(startParam.split('_')[1]);
-          }
-          
-          // Insert with default empty inventory
-          await supabase.from('users').insert({ 
-            id: currentUser.id, 
-            first_name: currentUser.first_name, 
-            balance: 100,
-            referred_by: referrerId,
-            inventory: [] // Start with empty pockets
-          });
-          
-          setBalance(100);
-          balanceRef.current = 100;
-          setInventory([]);
-          
-          // 👇 STEP B FIX: TELL THE APP NEW USER IS READY TO RENDER
-          setIsDataLoaded(true); 
-        }
-      }
-    };
-    init();
-  }, []);
+          setIsDataLoaded(true);
 
   // --- 2. TELEMETRY ENGINE (The "Ghost" Collector) ---
   useEffect(() => {
@@ -619,17 +593,23 @@ function App() {
     if (window.toastTimer) clearTimeout(window.toastTimer);
     window.toastTimer = setTimeout(() => setToast(null), 3500);
   };
-  // ==========================================
-
+  
+ // ==========================================
   // Calculates time left for the Cooldown Timer
   const getCooldownDisplay = () => {
     if (!cooldownUntil) return null;
-    const left = cooldownUntil - Date.now();
-    if (left <= 0) return null; // Cooldown finished!
+    
+    // 🚨 THE FIX: Force the value (whether string or number) into a pure millisecond timestamp!
+    const targetTime = new Date(cooldownUntil).getTime();
+    const left = targetTime - Date.now();
+    
+    // Safety net: If the math fails or time is up, return null to clear the timer
+    if (isNaN(left) || left <= 0) return null; 
 
     const h = Math.floor(left / (1000 * 60 * 60));
     const m = Math.floor((left % (1000 * 60 * 60)) / (1000 * 60));
     const s = Math.floor((left % (1000 * 60)) / 1000);
+    
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 

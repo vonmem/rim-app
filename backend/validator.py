@@ -45,21 +45,31 @@ def get_tier_stats(balance):
 def is_buff_active(expiry_val):
     if not expiry_val: 
         return False
+    
+    # 🚨 SAFETY NET: Catch strings like "null" or "undefined"
+    if isinstance(expiry_val, str) and expiry_val.lower() in ['null', 'undefined', 'none', '']:
+        return False
+
     try:
         now_ms = time.time() * 1000
         # If it's a millisecond integer (from React Date.now())
         if isinstance(expiry_val, (int, float)):
             return expiry_val > now_ms
+        
         # If it's a string from the DB
         if isinstance(expiry_val, str):
             if expiry_val.isdigit():
                 return int(expiry_val) > now_ms
+            
             # Fallback for ISO format
             expiry_str = expiry_val.replace('Z', '+00:00')
             expiry_time = datetime.fromisoformat(expiry_str)
             return expiry_time > datetime.now(timezone.utc)
+            
     except Exception as e:
+        # print(f"⚠️ Timer Parse Error on {expiry_val}: {e}") # Uncomment to debug
         return False
+        
     return False
 
 async def run_validator():
