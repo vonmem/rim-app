@@ -517,8 +517,12 @@ function App() {
         // --- UNIVERSAL TIER LIMITS & COOLDOWN ENGINE ---
         // 🚨 TEST OVERRIDE: Change 3600 to 2 for quick testing!
         const timeMultiplier = 3600; // Keep at 3600 for production!
-        const DAILY_LIMIT_SECONDS = currentTier.limitHours * timeMultiplier; 
-        const COOLDOWN_HOURS = 24 - currentTier.limitHours; 
+        
+        // 🚨 THE FIX: Safe fallbacks in case currentTier is missing limitHours
+        // If limitHours is missing, we default to ~30 seconds (30 / 3600)
+        const safeLimitHours = currentTier?.limitHours || (30 / 3600); 
+        const DAILY_LIMIT_SECONDS = safeLimitHours * timeMultiplier; 
+        const COOLDOWN_HOURS = 24 - safeLimitHours; 
 
         // 1. CHECK IF LIMIT REACHED
         if (godModeRef.current >= DAILY_LIMIT_SECONDS) {
@@ -528,11 +532,11 @@ function App() {
             setStatus('IDLE'); 
             setIsOverheated(true); 
             
-            // 🚨 THE FIX: Catching every possible variation of the user ID
             const safeUserId = (typeof currentUser !== 'undefined' && currentUser?.id) 
                             || (typeof user !== 'undefined' && user?.id) 
                             || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
                             
+            // 🚨 BULLETPROOF MATH: Guarantees a real timestamp because COOLDOWN_HOURS is strictly a number now!
             const cooldownTime = Date.now() + (COOLDOWN_HOURS * 60 * 60 * 1000); 
             
             setCooldownUntil(prev => {
