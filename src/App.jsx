@@ -222,8 +222,17 @@ function App() {
              }
           }
 
-          // 👇 STEP B FIX: TELL THE APP WE ARE READY TO RENDER
+      // 👇 STEP B FIX: TELL THE APP WE ARE READY TO RENDER
           setIsDataLoaded(true);
+        }
+      };
+
+      init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    };
+
+    init();
+  }, []);
 
   // --- 2. TELEMETRY ENGINE (The "Ghost" Collector) ---
   useEffect(() => {
@@ -1030,4 +1039,4 @@ function App() {
   );
 };
 
-export default App;
+export default App
