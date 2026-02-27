@@ -22,24 +22,42 @@ BASE_RATE = 0.1
 REFERRAL_BONUS_PER_TICK = 0.003 * 5 
 TIMEOUT_SECONDS = 60  # Increased from 30s to 60s for stability
 
-# TIERS
+# --- THE SEVEN SAGES HIERARCHY (Mapped to React IDs) ---
 TIER_CONFIG = [
-    {'threshold': 20000000, 'mult': 100.0, 'cap': 1000}, 
-    {'threshold': 5000000,  'mult': 25.0,  'cap': 1000}, 
-    {'threshold': 1500000,  'mult': 10.0,  'cap': 1000}, 
-    {'threshold': 500000,   'mult': 5.0,   'cap': 500},  
-    {'threshold': 100000,   'mult': 3.0,   'cap': 250},  
-    {'threshold': 20000,    'mult': 2.0,   'cap': 100},  
-    {'threshold': 5000,     'mult': 1.5,   'cap': 50},   
-    {'threshold': 1000,     'mult': 1.2,   'cap': 25},   
-    {'threshold': 0,        'mult': 1.0,   'cap': 10}    
+    {'id': 7.3, 'threshold': 20000000, 'mult': 100.0, 'cap': 100000},
+    {'id': 7.2, 'threshold': 5000000,  'mult': 25.0,  'cap': 25000},
+    {'id': 7.1, 'threshold': 1500000,  'mult': 10.0,  'cap': 10000},
+    {'id': 6,   'threshold': 500000,   'mult': 5.0,   'cap': 5000},
+    {'id': 5,   'threshold': 100000,   'mult': 3.0,   'cap': 1000},
+    {'id': 4,   'threshold': 20000,    'mult': 2.0,   'cap': 200},
+    {'id': 3,   'threshold': 5000,     'mult': 1.5,   'cap': 50},
+    {'id': 2,   'threshold': 1000,     'mult': 1.2,   'cap': 20},
+    {'id': 1,   'threshold': 0,        'mult': 1.0,   'cap': 10}
 ]
 
-def get_tier_stats(balance):
+def get_tier_stats(balance, inventory):
+    highest_mult = 1.0
+    highest_cap = 10
+    
+    # 🚨 SAFETY NET: Convert all inventory items to strings so 7.2 always matches "7.2"
+    safe_inventory = [str(item) for item in inventory] if isinstance(inventory, list) else []
+    
+    # 1. Check Inventory FIRST (Respects the Rigs you actually bought!)
+    for t in TIER_CONFIG:
+        tier_id_str = str(t['id'])
+        if tier_id_str in safe_inventory:
+            if t['mult'] > highest_mult:
+                highest_mult = t['mult']
+                highest_cap = t['cap']
+                
+    # 2. Check Balance as fallback (For new players or legacy logic)
     for t in TIER_CONFIG:
         if balance >= t['threshold']:
-            return t['mult'], t['cap']
-    return 1.0, 10
+            if t['mult'] > highest_mult:
+                highest_mult = t['mult']
+                highest_cap = t['cap']
+                
+    return highest_mult, highest_cap
 
 # Helper function to check if a timer is still active (handles both milliseconds and ISO strings)
 def is_buff_active(expiry_val):
@@ -138,7 +156,8 @@ async def run_validator():
                 # --- 3. PAYOUT LOGIC ---
                 raw_balance = user.get('balance')
                 current_balance = float(raw_balance) if raw_balance is not None else 0.0
-                multiplier, bandwidth_cap = get_tier_stats(current_balance)
+                inventory = user.get('inventory') or []
+                multiplier, bandwidth_cap = get_tier_stats(current_balance, inventory)
                 
                 # Apply Signal Booster (+20%)
                 if has_active_booster:
