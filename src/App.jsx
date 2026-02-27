@@ -170,25 +170,18 @@ function App() {
         const { data } = await supabase.from('users').select('*').eq('id', currentUser.id).single();
         
         if (data) {
-          // EXISTING USER: Load their saved data
-          
-          // 🚨 FIRST-AID FIX: If balance is null/NaN, default to 0 to save the app!
+          // --- EXISTING USER: Load their saved data ---
           const safeBalance = Number(data.balance) || 0; 
-          
           setBalance(safeBalance);
           balanceRef.current = safeBalance;
           setReferralCount(0); // In prod, fetch real count
           
-          // Load their inventory (Rigs/NFTs)
           setInventory(data.inventory || []); 
           
-          // 🚨 NEW: Load their Consumables Backpack (JSON)
-          // If they don't have one yet, give them an empty default!
           setConsumables(data.consumables || {
             "c_energy": 0, "c_o2": 0, "c_cryo": 0, "tw_bat": 0, "tw_dolphin": 0, "tw_apex": 0
           }); 
           
-          // 🚨 RESTORE BLACK MARKET TIMERS FROM DATABASE
           if (data.relay_expiry) {
              const relayMs = new Date(data.relay_expiry).getTime();
              setRelayExpiry(relayMs);
@@ -205,32 +198,44 @@ function App() {
              localStorage.setItem('botnetExpiry', data.botnet_expiry.toString());
           }
 
-          // 👇 THE AMNESIA FIX: RESTORE OVERHEAT COOLDOWN STATE
           if (data.cooldown_until) {
-             // 🚨 CRITICAL FIX: Safely parse the DB String into a real millisecond number!
              const cooldownMs = new Date(data.cooldown_until).getTime();
-             
              if (cooldownMs > Date.now()) {
-                 // 🔒 The system is STILL cooling down! Force the locks!
                  setCooldownUntil(cooldownMs);
                  setIsOverheated(true);
-                 setStatus('IDLE'); // Ensure the miner is off
-                 
-                 // Snap the visual progress bar back to 100%
+                 setStatus('IDLE'); 
                  setGodModeElapsed(9999999);
                  godModeRef.current = 9999999; 
              }
           }
 
-      // 👇 STEP B FIX: TELL THE APP WE ARE READY TO RENDER
           setIsDataLoaded(true);
+          
+        } else {
+          // --- NEW USER: Create account ---
+          let referrerId = null;
+          if (startParam && startParam.startsWith('ref_')) {
+             referrerId = parseInt(startParam.split('_')[1]);
+          }
+          
+          await supabase.from('users').insert({ 
+            id: currentUser.id, 
+            first_name: currentUser.first_name, 
+            balance: 100,
+            referred_by: referrerId,
+            inventory: [] 
+          });
+          
+          setBalance(100);
+          balanceRef.current = 100;
+          setInventory([]);
+          
+          setIsDataLoaded(true); 
         }
-      };
-
-      init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      }
     };
 
+    // Trigger the boot sequence exactly ONCE
     init();
   }, []);
 

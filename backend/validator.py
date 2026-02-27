@@ -136,7 +136,8 @@ async def run_validator():
                     continue
 
                 # --- 3. PAYOUT LOGIC ---
-                current_balance = float(user.get('balance', 0))
+                raw_balance = user.get('balance')
+                current_balance = float(raw_balance) if raw_balance is not None else 0.0
                 multiplier, bandwidth_cap = get_tier_stats(current_balance)
                 
                 # Apply Signal Booster (+20%)
