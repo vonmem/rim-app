@@ -1,6 +1,7 @@
 import os
 import time
 import asyncio
+import json
 from datetime import datetime, timezone
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -35,13 +36,28 @@ TIER_CONFIG = [
     {'id': 1,   'threshold': 0,        'mult': 1.0,   'cap': 10}
 ]
 
-def get_tier_stats(balance, inventory):
+def get_tier_stats(balance, inventory_data):
     highest_mult = 1.0
     highest_cap = 10
     
-    # 🚨 SAFETY NET: Convert all inventory items to strings so 7.2 always matches "7.2"
-    safe_inventory = [str(item) for item in inventory] if isinstance(inventory, list) else []
+    # 🚨 AGGRESSIVE PARSER: Catch whatever weird format Supabase throws at us
+    safe_inventory = []
     
+    if isinstance(inventory_data, str):
+        try:
+            # Try parsing it if it's a JSON string: '["7.2", "3"]'
+            parsed = json.loads(inventory_data)
+            if isinstance(parsed, list):
+                safe_inventory = [str(i).strip() for i in parsed]
+        except:
+            # Try parsing it if it's a Postgres array string: '{7.2, 3}'
+            clean_str = inventory_data.replace('{', '').replace('}', '').replace('[', '').replace(']', '').replace('"', '').replace("'", "")
+            safe_inventory = [i.strip() for i in clean_str.split(',') if i.strip()]
+            
+    elif isinstance(inventory_data, list):
+        # If it's already a perfect list
+        safe_inventory = [str(i).strip() for i in inventory_data]
+
     # 1. Check Inventory FIRST (Respects the Rigs you actually bought!)
     for t in TIER_CONFIG:
         tier_id_str = str(t['id'])
@@ -50,7 +66,7 @@ def get_tier_stats(balance, inventory):
                 highest_mult = t['mult']
                 highest_cap = t['cap']
                 
-    # 2. Check Balance as fallback (For new players or legacy logic)
+    # 2. Check Balance as fallback
     for t in TIER_CONFIG:
         if balance >= t['threshold']:
             if t['mult'] > highest_mult:
@@ -158,6 +174,9 @@ async def run_validator():
                 current_balance = float(raw_balance) if raw_balance is not None else 0.0
                 inventory = user.get('inventory') or []
                 multiplier, bandwidth_cap = get_tier_stats(current_balance, inventory)
+
+                # 🚨 ADD THIS DIAGNOSTIC LOG!
+                print(f"🔍 DEBUG: Inv Raw: {inventory} | Calc Mult: {multiplier}x")
                 
                 # Apply Signal Booster (+20%)
                 if has_active_booster:
