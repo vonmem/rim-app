@@ -40,27 +40,20 @@ def get_tier_stats(balance, inventory_data):
     highest_mult = 1.0
     highest_cap = 10
     
-    # 🚨 AGGRESSIVE PARSER: Catch whatever weird format Supabase throws at us
     safe_inventory = []
     
-    if isinstance(inventory_data, str):
-        try:
-            # Try parsing it if it's a JSON string: '["7.2", "3"]'
-            parsed = json.loads(inventory_data)
-            if isinstance(parsed, list):
-                safe_inventory = [str(i).strip() for i in parsed]
-        except:
-            # Try parsing it if it's a Postgres array string: '{7.2, 3}'
-            clean_str = inventory_data.replace('{', '').replace('}', '').replace('[', '').replace(']', '').replace('"', '').replace("'", "")
-            safe_inventory = [i.strip() for i in clean_str.split(',') if i.strip()]
-            
-    elif isinstance(inventory_data, list):
-        # If it's already a perfect list
-        safe_inventory = [str(i).strip() for i in inventory_data]
+    if isinstance(inventory_data, list):
+        # 🚨 THE FIX: Strip "tier_" off so "tier_7.2" perfectly matches "7.2"
+        safe_inventory = [str(i).strip().lower().replace('tier_', '') for i in inventory_data]
+        
+    elif isinstance(inventory_data, str):
+        # Fallback if Supabase sends a weird string array
+        clean_str = inventory_data.replace('{', '').replace('}', '').replace('[', '').replace(']', '').replace('"', '').replace("'", "")
+        safe_inventory = [i.strip().lower().replace('tier_', '') for i in clean_str.split(',') if i.strip()]
 
     # 1. Check Inventory FIRST (Respects the Rigs you actually bought!)
     for t in TIER_CONFIG:
-        tier_id_str = str(t['id'])
+        tier_id_str = str(t['id']).lower()
         if tier_id_str in safe_inventory:
             if t['mult'] > highest_mult:
                 highest_mult = t['mult']
