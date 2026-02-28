@@ -1020,36 +1020,71 @@ function App() {
       </div>
 
       {/* TABS & MODALS (SQUAD / MARKET) */}
-      {/* Keeping these inline for now as they are simple overlays */}
-      
       {tab === 'SQUAD' && (
-        <div className="absolute inset-0 bg-black z-40 p-6 pt-20 overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-             <h2 className="text-xl font-bold flex items-center"><Users className="mr-2" /> NEURAL SQUAD</h2>
-             <button onClick={() => setTab('TERMINAL')} className="text-xs text-gray-500">CLOSE</button>
+        // 🚨 FIX 1: z-[60] forces it to cover the header, pt-12 clears the phone notch
+        <div className="absolute inset-0 bg-black z-[60] p-6 pt-12 overflow-y-auto pb-24">
+          
+          {/* HEADER AREA */}
+          <div className="flex justify-between items-center mb-8">
+             <h2 className="text-xl font-bold flex items-center text-white">
+                <Users className="mr-2" /> NEURAL SQUAD
+             </h2>
+             <button 
+                onClick={() => setTab('TERMINAL')} 
+                className="text-xs font-bold text-gray-400 bg-gray-900 px-4 py-2 rounded border border-gray-800 hover:text-white transition-colors"
+             >
+                CLOSE
+             </button>
           </div>
           
-          <div className="text-center mt-4">
-             <div className="w-20 h-20 bg-gray-900 rounded-full mx-auto flex items-center justify-center border border-gray-700 mb-4"><Users size={32} className="text-gray-400"/></div>
-             <p className="text-xs text-gray-500 mb-4 max-w-xs mx-auto">Build the Swarm. Earn royalties from downstream nodes.</p>
+          <div className="text-center mt-6">
+             {/* GLOWING ICON */}
+             <div className="w-24 h-24 bg-gray-900 rounded-full mx-auto flex items-center justify-center border border-cyan-500/30 mb-6 shadow-[0_0_30px_rgba(34,211,238,0.15)]">
+                <Users size={40} className="text-cyan-400"/>
+             </div>
+             
+             {/* 🚨 FIX 2: EXPLICIT 10% ROYALTY TEXT */}
+             <h3 className="text-lg font-black text-cyan-400 tracking-widest uppercase mb-2">
+                Earn 10% Royalties
+             </h3>
+             <p className="text-xs text-gray-400 mb-8 max-w-xs mx-auto leading-relaxed">
+                Build the Swarm. You will permanently receive <span className="text-white font-bold border-b border-cyan-500">10% of all RP</span> mined by your downstream nodes in real-time.
+             </p>
              
              {/* BANDWIDTH CAP */}
-             <div className="bg-gray-900 p-4 rounded-lg border border-gray-800 mb-8 max-w-xs mx-auto text-left">
-                <div className="flex justify-between items-end mb-2">
-                   <span className="text-[10px] text-gray-400 uppercase font-bold flex items-center"><Zap size={10} className="mr-1"/> Bandwidth Cap</span>
-                   <span className={`text-[10px] font-bold ${referralCount > currentTier.bandwidth ? 'text-red-500' : 'text-cyan-400'}`}>
-                      {activeReferrals} / {currentTier.bandwidth} NODES
+             <div className="bg-gray-900 p-5 rounded-lg border border-gray-800 mb-8 max-w-xs mx-auto text-left relative overflow-hidden shadow-xl">
+                <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/30"></div>
+                <div className="flex justify-between items-end mb-3">
+                   <span className="text-[10px] text-gray-400 uppercase font-bold flex items-center">
+                      <Zap size={12} className="mr-1 text-cyan-500"/> Bandwidth Cap
+                   </span>
+                   <span className={`text-[12px] font-black ${referralCount > currentTier.bandwidth ? 'text-red-500' : 'text-cyan-400'}`}>
+                      {referralCount} / {currentTier.bandwidth} <span className="text-[8px] text-gray-500">NODES</span>
                    </span>
                 </div>
-                <div className="w-full h-2 bg-black rounded-full overflow-hidden">
+                
+                <div className="w-full h-2.5 bg-black rounded-full overflow-hidden border border-gray-800">
                    <div 
-                      className={`h-full ${referralCount > currentTier.bandwidth ? 'bg-red-500' : 'bg-cyan-500'}`} 
+                      className={`h-full transition-all duration-1000 ${referralCount > currentTier.bandwidth ? 'bg-red-500' : 'bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.8)]'}`} 
                       style={{ width: `${Math.min(100, (referralCount / currentTier.bandwidth) * 100)}%` }}
                    ></div>
                 </div>
+                
+                {/* DYNAMIC WARNING IF CAPPED */}
+                {referralCount >= currentTier.bandwidth && (
+                   <p className="text-[9px] text-red-400 mt-3 tracking-widest uppercase font-bold text-center animate-pulse">
+                      ⚠️ UPGRADE RIG TO EXPAND BANDWIDTH
+                   </p>
+                )}
              </div>
 
-             <button onClick={handleInvite} className="w-full py-4 bg-white text-black font-bold tracking-widest hover:bg-cyan-400 transition-colors rounded">INITIATE RECRUITMENT</button>
+             {/* VIRAL BUTTON */}
+             <button 
+                onClick={handleInvite} 
+                className="w-full max-w-xs mx-auto py-4 bg-cyan-500 text-black font-black tracking-widest hover:bg-cyan-400 transition-colors rounded shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+             >
+                INITIATE RECRUITMENT
+             </button>
           </div>
         </div>
       )}
