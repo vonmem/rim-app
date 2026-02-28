@@ -448,7 +448,14 @@ function App() {
   // --- INVENTORY: DEPLOY CONSUMABLE ---
   const deployConsumable = async (item) => {
       const baseId = item.id.replace('_bulk', ''); // Safety check
-      if (!consumables[baseId] || consumables[baseId] <= 0) return false;
+      if (!consumables[baseId] || consumables[baseId] <= 0) {
+          // showToast("⚠️ INSUFFICIENT INVENTORY.", "error");
+          return false;
+      }
+
+      const now = Date.now();
+      const HOUR = 60 * 60 * 1000;
+      const DAY = 24 * HOUR;
 
       // 1. Deduct from backpack instantly
       const updatedConsumables = {
@@ -463,27 +470,58 @@ function App() {
       // 3. Apply the specific item effect!
       if (item.type === 'BAT' || item.type === 'DOLPHIN' || item.type === 'APEX') {
           // It's a cooling/recharge item! Reset the rig.
+          if (!isOverheated && (!cooldownUntil || cooldownUntil < now)) {
+              console.log("⚠️ SYSTEM IS ALREADY COOL. SAVE YOUR ITEM.");
+              // Put the item back!
+              setConsumables(consumables); 
+              return false; 
+          }
+          
           setIsOverheated(false);
           setCooldownUntil(null);
           setGodModeElapsed(0);
           godModeRef.current = 0;
           setStatus('IDLE');
           dbUpdate.cooldown_until = null; // Tell Supabase to unlock them
-          console.log(`✅ ${item.name} Deployed: System Restored.`);
+          console.log(`✅ ${item.name} DEPLOYED: System Restored.`);
+          // showToast(`✅ ${item.name} DEPLOYED: SYSTEM RESTORED.`, "success");
+          
       } 
       else if (item.id === 'signal_booster_1h') {
-          boosterRef.current = Date.now() + (1 * 60 * 60 * 1000);
+          const newTime = Math.max(now, boosterExpiry || 0) + HOUR;
+          setBoosterExpiry(newTime); // 🚨 STATE: Triggers the UI Badge!
+          dbUpdate.booster_expiry = new Date(newTime).toISOString(); // 🚨 DB: Tells Python!
           console.log(`📡 Signal Booster Active for 1 Hour!`);
+          // showToast(`📡 SIGNAL BOOSTER DEPLOYED! (+1 HOUR)`, "success");
       } 
       else if (item.id === 'botnet_injection') {
-          botnetRef.current = Date.now() + (24 * 60 * 60 * 1000);
+          const newTime = Math.max(now, botnetExpiry || 0) + DAY;
+          setBotnetExpiry(newTime); // 🚨 STATE: Triggers the UI Badge!
+          dbUpdate.botnet_expiry = new Date(newTime).toISOString(); // 🚨 DB: Tells Python!
           console.log(`🦠 Botnet Active for 24 Hours!`);
+          // showToast(`🦠 BOTNET DEPLOYED! (24H ACTIVE)`, "success");
+      }
+      else if (item.id === 'cloud_relay_24h' || item.id === 'cloud_relay_3d' || item.id === 'cloud_relay_7d') {
+          // Extract the days from the ID (default to 1 day)
+          const days = item.id.includes('7d') ? 7 : item.id.includes('3d') ? 3 : 1;
+          const newTime = Math.max(now, relayExpiry || 0) + (days * DAY);
+          setRelayExpiry(newTime);
+          dbUpdate.relay_expiry = new Date(newTime).toISOString();
+          console.log(`☁️ Cloud Relay Active!`);
+          // showToast(`☁️ CLOUD RELAY DEPLOYED!`, "success");
       }
 
       // 4. Save to Database
-      const safeUserId = (typeof currentUser !== 'undefined' && currentUser?.id) || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      const safeUserId = (typeof currentUser !== 'undefined' && currentUser?.id) 
+                      || (typeof user !== 'undefined' && user?.id) 
+                      || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+                      
       if (safeUserId) {
-          await supabase.from('users').update(dbUpdate).eq('id', safeUserId);
+          const { error } = await supabase.from('users').update(dbUpdate).eq('id', safeUserId);
+          if (error) {
+              console.error("❌ DB SAVE FAILED:", error.message);
+              // showToast("❌ DATABASE SYNC FAILED.", "error");
+          }
       }
       
       return true; // Tells the UI the deployment was a success
