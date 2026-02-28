@@ -174,7 +174,14 @@ function App() {
           const safeBalance = Number(data.balance) || 0; 
           setBalance(safeBalance);
           balanceRef.current = safeBalance;
-          setReferralCount(0); // In prod, fetch real count
+          
+          // 🚨 THE SQUAD FIX: Fetch real downstream node count
+          const { count: refCount } = await supabase
+            .from('users')
+            .select('*', { count: 'exact', head: true })
+            .eq('referred_by', currentUser.id);
+            
+          setReferralCount(refCount || 0);
           
           setInventory(data.inventory || []); 
           
@@ -616,11 +623,22 @@ function App() {
 
   const handleInvite = () => {
     if (!user) return;
+    
     const botUsername = 'RIM_Protocol_Bot'; 
+    // Uses your exact startapp format
     const inviteLink = `https://t.me/${botUsername}/start?startapp=ref_${user.id}`;
-    const text = `Join the RIM Intelligence Swarm. Activate your node.`;
-    const url = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
+    
+    // Updated to Sonar Rim!
+    const text = `Join the Sonar Rim network. Activate your node.`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodeURIComponent(text)}`;
+
+    if (window.Telegram?.WebApp) {
+      // 🚨 THE UPGRADE: Smooth native Telegram sharing overlay
+      window.Telegram.WebApp.openTelegramLink(shareUrl);
+    } else {
+      // Fallback for desktop browser testing
+      window.open(shareUrl, '_blank');
+    }
   };
 
   // --- TIMER HELPER ---
