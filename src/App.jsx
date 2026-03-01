@@ -392,8 +392,13 @@ function App() {
       // 2. Check RP Balance
       if (balanceRef.current < item.costRP) {
           console.log(`Not enough RP for ${item.name}`);
+          // showToast("⚠️ INSUFFICIENT RP.", "error");
           return;
       }
+
+      const now = Date.now();
+      const HOUR = 60 * 60 * 1000;
+      const DAY = 24 * HOUR;
 
       // 3. Deduct RP
       const newBalance = balanceRef.current - item.costRP;
@@ -419,35 +424,56 @@ function App() {
           consumables: updatedConsumables 
       };
 
-      // 6. 🚨 AUTO-DEPLOY LOGIC 🚨
+      // 6. 🚨 AUTO-DEPLOY LOGIC 🚨 (Now perfectly synced with State & DB!)
       if (autoDeploy) {
           if (item.type === 'BAT' || item.type === 'DOLPHIN' || item.type === 'APEX') {
-              setIsOverheated(false);
-              setCooldownUntil(null);
-              setGodModeElapsed(0);
-              godModeRef.current = 0;
-              setStatus('IDLE');
-              dbUpdate.cooldown_until = null; 
-              console.log(`✅ ${item.name} Auto-Deployed: System Restored.`);
+              if (!isOverheated && (!cooldownUntil || cooldownUntil < now)) {
+                  console.log("⚠️ SYSTEM ALREADY COOL. Purchase stashed instead.");
+                  // They accidentally injected a cool system. Let's be nice and stash it instead of wasting it!
+                  setConsumables({ ...consumables, [baseId]: newQty });
+                  dbUpdate.consumables = { ...consumables, [baseId]: newQty };
+              } else {
+                  setIsOverheated(false);
+                  setCooldownUntil(null);
+                  setGodModeElapsed(0);
+                  godModeRef.current = 0;
+                  setStatus('IDLE');
+                  dbUpdate.cooldown_until = null; 
+                  console.log(`✅ ${item.name} Auto-Deployed: System Restored.`);
+              }
           } 
           else if (item.id.includes('signal_booster')) {
-              boosterRef.current = Date.now() + (1 * 60 * 60 * 1000);
+              const newTime = Math.max(now, boosterExpiry || 0) + HOUR;
+              setBoosterExpiry(newTime); // 🚨 TRIGGERS UI BADGE
+              dbUpdate.booster_expiry = new Date(newTime).toISOString(); // 🚨 TELLS PYTHON
               console.log(`📡 Signal Booster Active for 1 Hour!`);
           } 
           else if (item.id.includes('botnet_injection')) {
-              botnetRef.current = Date.now() + (24 * 60 * 60 * 1000);
+              const newTime = Math.max(now, botnetExpiry || 0) + DAY;
+              setBotnetExpiry(newTime); // 🚨 TRIGGERS UI BADGE
+              dbUpdate.botnet_expiry = new Date(newTime).toISOString(); // 🚨 TELLS PYTHON
               console.log(`🦠 Botnet Active for 24 Hours!`);
+          }
+          else if (item.id.includes('cloud_relay')) {
+              const days = item.id.includes('7d') ? 7 : item.id.includes('3d') ? 3 : 1;
+              const newTime = Math.max(now, relayExpiry || 0) + (days * DAY);
+              setRelayExpiry(newTime);
+              dbUpdate.relay_expiry = new Date(newTime).toISOString();
+              console.log(`☁️ Cloud Relay Active!`);
           }
       }
 
       // 7. Save to Supabase
-      const safeUserId = (typeof currentUser !== 'undefined' && currentUser?.id) || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      const safeUserId = (typeof currentUser !== 'undefined' && currentUser?.id) 
+                      || (typeof user !== 'undefined' && user?.id) 
+                      || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+                      
       if (safeUserId) {
           const { error } = await supabase.from('users').update(dbUpdate).eq('id', safeUserId);
           if (!error) {
               console.log(`✅ Purchase Saved. Auto-Deploy: ${autoDeploy}`);
           } else {
-              console.error("DB Save Error:", error);
+              console.error("❌ DB Save Error:", error.message);
           }
       }
   };
@@ -916,6 +942,59 @@ function App() {
               onBuyItem={handleBuyItem}               // Your OLD function to buy a Rig
               buyBlackMarketItem={buyBlackMarketItem} // Your NEW function to buy Consumables
            />
+        ) : tab === 'SQUAD' ? (
+           // 🚨 THE NEW INLINE SQUAD TAB (No more z-[60] absolute overlay!)
+           <div className="flex flex-col h-full w-full p-6 pt-6 overflow-y-auto bg-black text-white pb-24 relative z-10">
+              <div className="flex justify-between items-center mb-8">
+                 <h2 className="text-xl font-bold flex items-center text-white">
+                    <Users className="mr-2" /> NEURAL SQUAD
+                 </h2>
+              </div>
+              
+              <div className="text-center mt-2">
+                 <div className="w-24 h-24 bg-gray-900 rounded-full mx-auto flex items-center justify-center border border-cyan-500/30 mb-6 shadow-[0_0_30px_rgba(34,211,238,0.15)]">
+                    <Users size={40} className="text-cyan-400"/>
+                 </div>
+                 
+                 <h3 className="text-lg font-black text-cyan-400 tracking-widest uppercase mb-2">
+                    Earn 10% Royalties
+                 </h3>
+                 <p className="text-xs text-gray-400 mb-8 max-w-xs mx-auto leading-relaxed">
+                    Build the Swarm. You will permanently receive <span className="text-white font-bold border-b border-cyan-500">10% of all RP</span> mined by your downstream nodes in real-time.
+                 </p>
+                 
+                 <div className="bg-gray-900 p-5 rounded-lg border border-gray-800 mb-8 max-w-xs mx-auto text-left relative overflow-hidden shadow-xl">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/30"></div>
+                    <div className="flex justify-between items-end mb-3">
+                       <span className="text-[10px] text-gray-400 uppercase font-bold flex items-center">
+                          <Zap size={12} className="mr-1 text-cyan-500"/> Bandwidth Cap
+                       </span>
+                       <span className={`text-[12px] font-black ${referralCount > currentTier.bandwidth ? 'text-red-500' : 'text-cyan-400'}`}>
+                          {referralCount} / {currentTier.bandwidth} <span className="text-[8px] text-gray-500">NODES</span>
+                       </span>
+                    </div>
+                    
+                    <div className="w-full h-2.5 bg-black rounded-full overflow-hidden border border-gray-800">
+                       <div 
+                          className={`h-full transition-all duration-1000 ${referralCount > currentTier.bandwidth ? 'bg-red-500' : 'bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.8)]'}`} 
+                          style={{ width: `${Math.min(100, (referralCount / currentTier.bandwidth) * 100)}%` }}
+                       ></div>
+                    </div>
+                    {referralCount >= currentTier.bandwidth && (
+                       <p className="text-[9px] text-red-400 mt-3 tracking-widest uppercase font-bold text-center animate-pulse">
+                          ⚠️ UPGRADE RIG TO EXPAND BANDWIDTH
+                       </p>
+                    )}
+                 </div>
+
+                 <button 
+                    onClick={handleInvite} 
+                    className="w-full max-w-xs mx-auto py-4 bg-cyan-500 text-black font-black tracking-widest hover:bg-cyan-400 transition-colors rounded shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+                 >
+                    INITIATE RECRUITMENT
+                 </button>
+              </div>
+           </div>
         ) : (
            <>
               {/* UNIVERSAL STABILITY BAR (Now shows for all tiers!) */}
@@ -1018,76 +1097,6 @@ function App() {
            </>
         )}
       </div>
-
-      {/* TABS & MODALS (SQUAD / MARKET) */}
-      {tab === 'SQUAD' && (
-        // 🚨 FIX 1: z-[60] forces it to cover the header, pt-12 clears the phone notch
-        <div className="absolute inset-0 bg-black z-[60] p-6 pt-12 overflow-y-auto pb-24">
-          
-          {/* HEADER AREA */}
-          <div className="flex justify-between items-center mb-8">
-             <h2 className="text-xl font-bold flex items-center text-white">
-                <Users className="mr-2" /> NEURAL SQUAD
-             </h2>
-             <button 
-                onClick={() => setTab('TERMINAL')} 
-                className="text-xs font-bold text-gray-400 bg-gray-900 px-4 py-2 rounded border border-gray-800 hover:text-white transition-colors"
-             >
-                CLOSE
-             </button>
-          </div>
-          
-          <div className="text-center mt-6">
-             {/* GLOWING ICON */}
-             <div className="w-24 h-24 bg-gray-900 rounded-full mx-auto flex items-center justify-center border border-cyan-500/30 mb-6 shadow-[0_0_30px_rgba(34,211,238,0.15)]">
-                <Users size={40} className="text-cyan-400"/>
-             </div>
-             
-             {/* 🚨 FIX 2: EXPLICIT 10% ROYALTY TEXT */}
-             <h3 className="text-lg font-black text-cyan-400 tracking-widest uppercase mb-2">
-                Earn 10% Royalties
-             </h3>
-             <p className="text-xs text-gray-400 mb-8 max-w-xs mx-auto leading-relaxed">
-                Build the Swarm. You will permanently receive <span className="text-white font-bold border-b border-cyan-500">10% of all RP</span> mined by your downstream nodes in real-time.
-             </p>
-             
-             {/* BANDWIDTH CAP */}
-             <div className="bg-gray-900 p-5 rounded-lg border border-gray-800 mb-8 max-w-xs mx-auto text-left relative overflow-hidden shadow-xl">
-                <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/30"></div>
-                <div className="flex justify-between items-end mb-3">
-                   <span className="text-[10px] text-gray-400 uppercase font-bold flex items-center">
-                      <Zap size={12} className="mr-1 text-cyan-500"/> Bandwidth Cap
-                   </span>
-                   <span className={`text-[12px] font-black ${referralCount > currentTier.bandwidth ? 'text-red-500' : 'text-cyan-400'}`}>
-                      {referralCount} / {currentTier.bandwidth} <span className="text-[8px] text-gray-500">NODES</span>
-                   </span>
-                </div>
-                
-                <div className="w-full h-2.5 bg-black rounded-full overflow-hidden border border-gray-800">
-                   <div 
-                      className={`h-full transition-all duration-1000 ${referralCount > currentTier.bandwidth ? 'bg-red-500' : 'bg-cyan-500 shadow-[0_0_10px_rgba(34,211,238,0.8)]'}`} 
-                      style={{ width: `${Math.min(100, (referralCount / currentTier.bandwidth) * 100)}%` }}
-                   ></div>
-                </div>
-                
-                {/* DYNAMIC WARNING IF CAPPED */}
-                {referralCount >= currentTier.bandwidth && (
-                   <p className="text-[9px] text-red-400 mt-3 tracking-widest uppercase font-bold text-center animate-pulse">
-                      ⚠️ UPGRADE RIG TO EXPAND BANDWIDTH
-                   </p>
-                )}
-             </div>
-
-             {/* VIRAL BUTTON */}
-             <button 
-                onClick={handleInvite} 
-                className="w-full max-w-xs mx-auto py-4 bg-cyan-500 text-black font-black tracking-widest hover:bg-cyan-400 transition-colors rounded shadow-[0_0_20px_rgba(34,211,238,0.4)]"
-             >
-                INITIATE RECRUITMENT
-             </button>
-          </div>
-        </div>
-      )}
 
       {/* FOOTER */}
       <div className="grid grid-cols-5 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
