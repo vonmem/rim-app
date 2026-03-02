@@ -1,48 +1,63 @@
 import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Polygon, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, useMap, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as h3 from 'h3-js';
 import { MapPin, Wifi, Crosshair } from 'lucide-react';
 
-// Helper to center map when user moves
+// Helper to smooth-pan the map when the user moves
 function ChangeView({ center }) {
   const map = useMap();
-  map.setView(center, 15); // Zoom level 15 = City Block view
+  map.setView(center, 15); 
   return null;
 }
 
 const MapTab = ({ 
   locationData, 
   cityNodeCount,
-  // 🚨 NEW PROPS FROM ACTIVE GPS HOOK
   isActiveGPSTracking,
   startActiveGPS,
   stopActiveGPS,
   activeGPSDistance,
-  activeGPSError
+  activeGPSError,
+  activeGPSLocation // 🚨 NEW LIVE PROP
 }) => {
   const [hexBoundary, setHexBoundary] = useState([]);
   const [neighborHexes, setNeighborHexes] = useState([]);
+  const [liveSector, setLiveSector] = useState(locationData?.h3Index || 'SCANNING...');
   
-  const center = locationData ? [locationData.lat, locationData.lng] : [1.3521, 103.8198]; // Default: Singapore
+  // 🚨 DYNAMIC CENTER: Use active GPS if tracking, otherwise fallback to static location
+  const currentLat = isActiveGPSTracking && activeGPSLocation ? activeGPSLocation.lat : (locationData?.lat || 1.3521);
+  const currentLng = isActiveGPSTracking && activeGPSLocation ? activeGPSLocation.lng : (locationData?.lng || 103.8198);
+  const center = [currentLat, currentLng];
 
+  // 🚨 DYNAMIC HEXAGONS: Redraw the grid when they physically move!
   useEffect(() => {
-    if (locationData && locationData.h3Index) {
-      // 1. Get User's Hexagon Shape
-      const boundary = h3.cellToBoundary(locationData.h3Index);
+    let lat = locationData?.lat;
+    let lng = locationData?.lng;
+    let h3Index = locationData?.h3Index;
+
+    // If actively tracking, calculate their live H3 sector (Resolution 9)
+    if (isActiveGPSTracking && activeGPSLocation) {
+      lat = activeGPSLocation.lat;
+      lng = activeGPSLocation.lng;
+      h3Index = h3.latLngToCell(lat, lng, 9);
+    }
+
+    if (h3Index) {
+      setLiveSector(h3Index);
+      const boundary = h3.cellToBoundary(h3Index);
       setHexBoundary(boundary);
 
-      // 2. Get Neighbors (Simulate Coverage)
-      const neighbors = h3.gridDisk(locationData.h3Index, 1); 
+      const neighbors = h3.gridDisk(h3Index, 1); 
       const surround = neighbors.slice(1).map(h => ({
         id: h,
         boundary: h3.cellToBoundary(h)
       }));
       setNeighborHexes(surround);
     }
-  }, [locationData]);
+  }, [locationData, activeGPSLocation, isActiveGPSTracking]);
 
-  if (!locationData) {
+  if (!locationData && !activeGPSLocation) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-gray-500 animate-pulse p-10 text-center">
         <Wifi size={48} className="mb-4 text-gray-700" />
@@ -54,7 +69,6 @@ const MapTab = ({
 
   return (
     <div className="absolute inset-0 z-0 bg-black">
-      {/* MAP CONTAINER */}
       <MapContainer 
         center={center} 
         zoom={15} 
@@ -64,22 +78,14 @@ const MapTab = ({
       >
         <ChangeView center={center} />
         
-        {/* DARK MATTER TILES (The Cyberpunk Look) */}
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
+        <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
 
         {/* NEIGHBOR HEXES */}
         {neighborHexes.map((hex) => (
           <Polygon
             key={hex.id}
             positions={hex.boundary}
-            pathOptions={{ 
-              color: '#06b6d4',
-              weight: 1, 
-              fillOpacity: 0.1, 
-              fillColor: '#06b6d4' 
-            }}
+            pathOptions={{ color: '#06b6d4', weight: 1, fillOpacity: 0.1, fillColor: '#06b6d4' }}
           />
         ))}
 
@@ -87,20 +93,26 @@ const MapTab = ({
         {hexBoundary.length > 0 && (
           <Polygon 
             positions={hexBoundary} 
-            pathOptions={{ 
-              color: '#06b6d4', 
-              weight: 2, 
-              fillOpacity: 0.3, 
-              fillColor: '#06b6d4' 
-            }} 
+            pathOptions={{ color: '#06b6d4', weight: 2, fillOpacity: 0.3, fillColor: '#06b6d4' }} 
           />
         )}
+
+        {/* 🚨 THE LIVE RADAR DOT */}
+        <CircleMarker 
+          center={center} 
+          radius={6} 
+          pathOptions={{ 
+            color: isActiveGPSTracking ? '#22c55e' : '#06b6d4', // Green if tracking, Cyan if static
+            fillColor: isActiveGPSTracking ? '#22c55e' : '#06b6d4', 
+            fillOpacity: 1,
+            weight: 2
+          }} 
+        />
       </MapContainer>
 
       {/* OVERLAY HUD CONTAINER */}
       <div className="absolute bottom-24 left-4 right-4 flex flex-col gap-3 z-[1000]">
         
-        {/* 🚨 THE NEW ACTIVE MAPPING PANEL */}
         <div className="bg-black/90 backdrop-blur-md border border-cyan-500/50 rounded-lg p-4 shadow-[0_0_20px_rgba(34,211,238,0.15)]">
           <div className="flex justify-between items-center mb-4">
             <div>
@@ -133,20 +145,13 @@ const MapTab = ({
               {Math.floor(activeGPSDistance)} <span className="text-xs text-cyan-500">m</span>
             </span>
           </div>
-
-          {activeGPSError && (
-            <p className="text-[9px] text-red-400 mt-3 tracking-widest uppercase font-bold text-center border border-red-900/50 bg-red-900/20 py-2 rounded">
-              ⚠️ {activeGPSError}
-            </p>
-          )}
         </div>
 
-        {/* EXISTING SECTOR HUD */}
         <div className="bg-black/80 backdrop-blur border border-gray-800 p-4 rounded-lg">
            <div className="flex justify-between items-center">
               <div>
                  <p className="text-[9px] text-gray-500 uppercase">Current Sector</p>
-                 <p className="text-xs font-mono text-cyan-400">{locationData.h3Index}</p>
+                 <p className="text-xs font-mono text-cyan-400">{liveSector}</p>
               </div>
               <div className="text-right">
                  <p className="text-[9px] text-gray-500 uppercase">Coverage Density</p>
@@ -157,7 +162,6 @@ const MapTab = ({
               </div>
            </div>
         </div>
-        
       </div>
     </div>
   );

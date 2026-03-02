@@ -965,7 +965,8 @@ function App() {
               startActiveGPS={startActiveGPS}
               stopActiveGPS={stopActiveGPS}
               activeGPSDistance={activeGPSDistance}
-              activeGPSError={activeGPSError} 
+              activeGPSError={activeGPSError}
+              activeGPSLocation={activeGPSLocation} 
            />
         ) : tab === 'WALLET' ? (
            <Inventory 
