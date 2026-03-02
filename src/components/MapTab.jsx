@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as h3 from 'h3-js';
-import { MapPin, Wifi } from 'lucide-react';
+import { MapPin, Wifi, Crosshair } from 'lucide-react';
 
 // Helper to center map when user moves
 function ChangeView({ center }) {
@@ -11,7 +11,16 @@ function ChangeView({ center }) {
   return null;
 }
 
-const MapTab = ({ locationData, cityNodeCount }) => {
+const MapTab = ({ 
+  locationData, 
+  cityNodeCount,
+  // 🚨 NEW PROPS FROM ACTIVE GPS HOOK
+  isActiveGPSTracking,
+  startActiveGPS,
+  stopActiveGPS,
+  activeGPSDistance,
+  activeGPSError
+}) => {
   const [hexBoundary, setHexBoundary] = useState([]);
   const [neighborHexes, setNeighborHexes] = useState([]);
   
@@ -24,9 +33,7 @@ const MapTab = ({ locationData, cityNodeCount }) => {
       setHexBoundary(boundary);
 
       // 2. Get Neighbors (Simulate Coverage)
-      // kRing(origin, radius) gets surrounding hexes
       const neighbors = h3.gridDisk(locationData.h3Index, 1); 
-      // Remove the center hex from neighbors so we don't draw it twice
       const surround = neighbors.slice(1).map(h => ({
         id: h,
         boundary: h3.cellToBoundary(h)
@@ -62,13 +69,13 @@ const MapTab = ({ locationData, cityNodeCount }) => {
           url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
         />
 
-        {/* NEIGHBOR HEXES (Faint Cyan - "Coverage") */}
+        {/* NEIGHBOR HEXES */}
         {neighborHexes.map((hex) => (
           <Polygon
             key={hex.id}
             positions={hex.boundary}
             pathOptions={{ 
-              color: '#06b6d4', // Cyan-500
+              color: '#06b6d4',
               weight: 1, 
               fillOpacity: 0.1, 
               fillColor: '#06b6d4' 
@@ -76,7 +83,7 @@ const MapTab = ({ locationData, cityNodeCount }) => {
           />
         ))}
 
-        {/* USER HEXAGON (Bright Cyan - "Active Node") */}
+        {/* USER HEXAGON */}
         {hexBoundary.length > 0 && (
           <Polygon 
             positions={hexBoundary} 
@@ -88,24 +95,69 @@ const MapTab = ({ locationData, cityNodeCount }) => {
             }} 
           />
         )}
-
       </MapContainer>
 
-      {/* OVERLAY HUD */}
-      <div className="absolute bottom-24 left-4 right-4 bg-black/80 backdrop-blur border border-gray-800 p-4 rounded-lg z-[1000]">
-         <div className="flex justify-between items-center">
+      {/* OVERLAY HUD CONTAINER */}
+      <div className="absolute bottom-24 left-4 right-4 flex flex-col gap-3 z-[1000]">
+        
+        {/* 🚨 THE NEW ACTIVE MAPPING PANEL */}
+        <div className="bg-black/90 backdrop-blur-md border border-cyan-500/50 rounded-lg p-4 shadow-[0_0_20px_rgba(34,211,238,0.15)]">
+          <div className="flex justify-between items-center mb-4">
             <div>
-               <p className="text-[9px] text-gray-500 uppercase">Current Sector</p>
-               <p className="text-xs font-mono text-cyan-400">{locationData.h3Index}</p>
+              <h3 className="text-sm font-black text-white tracking-widest flex items-center uppercase">
+                {isActiveGPSTracking ? (
+                  <Crosshair size={14} className="mr-2 text-cyan-400 animate-pulse" />
+                ) : (
+                  <MapPin size={14} className="mr-2 text-gray-500" />
+                )}
+                Active Mapping
+              </h3>
+              <p className="text-[9px] text-gray-400 mt-1 uppercase tracking-wider">Earn 50 RP per 50m mapped</p>
             </div>
-            <div className="text-right">
-               <p className="text-[9px] text-gray-500 uppercase">Coverage Density</p>
-               <div className="flex items-center justify-end space-x-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                  <p className="text-xs font-bold text-white">{cityNodeCount} NODES</p>
-               </div>
-            </div>
-         </div>
+            
+            <button 
+              onClick={isActiveGPSTracking ? stopActiveGPS : startActiveGPS}
+              className={`px-4 py-2 rounded font-black text-[10px] tracking-widest transition-all ${
+                isActiveGPSTracking 
+                  ? 'bg-red-900/40 text-red-400 border border-red-500/50 hover:bg-red-900 shadow-[0_0_10px_rgba(239,68,68,0.2)]' 
+                  : 'bg-cyan-900/40 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-900 hover:text-white shadow-[0_0_10px_rgba(34,211,238,0.2)]'
+              }`}
+            >
+              {isActiveGPSTracking ? 'ABORT TRACKING' : 'INITIATE'}
+            </button>
+          </div>
+
+          <div className="bg-gray-900/80 rounded border border-gray-800 p-3 flex justify-between items-center">
+            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Distance Mapped</span>
+            <span className="text-xl font-mono font-bold text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+              {Math.floor(activeGPSDistance)} <span className="text-xs text-cyan-500">m</span>
+            </span>
+          </div>
+
+          {activeGPSError && (
+            <p className="text-[9px] text-red-400 mt-3 tracking-widest uppercase font-bold text-center border border-red-900/50 bg-red-900/20 py-2 rounded">
+              ⚠️ {activeGPSError}
+            </p>
+          )}
+        </div>
+
+        {/* EXISTING SECTOR HUD */}
+        <div className="bg-black/80 backdrop-blur border border-gray-800 p-4 rounded-lg">
+           <div className="flex justify-between items-center">
+              <div>
+                 <p className="text-[9px] text-gray-500 uppercase">Current Sector</p>
+                 <p className="text-xs font-mono text-cyan-400">{locationData.h3Index}</p>
+              </div>
+              <div className="text-right">
+                 <p className="text-[9px] text-gray-500 uppercase">Coverage Density</p>
+                 <div className="flex items-center justify-end space-x-1">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <p className="text-xs font-bold text-white">{cityNodeCount} NODES</p>
+                 </div>
+              </div>
+           </div>
+        </div>
+        
       </div>
     </div>
   );

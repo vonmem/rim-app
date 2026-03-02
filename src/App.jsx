@@ -15,6 +15,9 @@ import Marketplace from './components/Marketplace';
 import LocationService from './services/LocationService' 
 import TelemetryService from './services/TelemetryService'
 
+// --- HOOKS (Active Mapping) ---
+import useActiveGPS from './hooks/useActiveGPS'
+
 // --- CONFIGURATION ---
 const BASE_MINING_RATE = 0.1; 
 const HALVING_MULTIPLIER = 1.0; 
@@ -689,6 +692,41 @@ function App() {
     if (window.toastTimer) clearTimeout(window.toastTimer);
     window.toastTimer = setTimeout(() => setToast(null), 3500);
   };
+
+  // --- ACTIVE MAPPING: Reward when user moves 50m (Standard Drop) ---
+  const ACTIVE_MAP_BOUNTY_RP = 50;
+  const handleLocationReward = async (distance, coords) => {
+    // Standard Drop: flat bounty into balance
+    const newBalance = balanceRef.current + ACTIVE_MAP_BOUNTY_RP;
+    setBalance(newBalance);
+    balanceRef.current = newBalance;
+
+    const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (safeUserId) {
+      await supabase.from('users').update({ balance: balanceRef.current }).eq('id', safeUserId);
+    }
+
+    showToast(`📍 +${ACTIVE_MAP_BOUNTY_RP} RP | 50m Mapped!`, 'success');
+
+    // Zone Stub: future GPS Booster (multiplier timer in Supabase instead of flat payout)
+    // if (isUnexploredZone(coords)) {
+    //   // Apply GPS Booster: extend multiplier timer in Supabase (like Signal Boosters)
+    //   await supabase.from('users').update({ booster_expiry: ... }).eq('id', safeUserId);
+    // }
+  };
+
+  const {
+    currentLocation: activeGPSLocation,
+    distanceTraveled: activeGPSDistance,
+    isTracking: isActiveGPSTracking,
+    startTracking: startActiveGPS,
+    stopTracking: stopActiveGPS,
+    permissionState: activeGPSPermission,
+    permissionError: activeGPSError,
+  } = useActiveGPS({
+    onSignificantLocationChange: handleLocationReward,
+    thresholdMeters: 50,
+  });
   
  // ==========================================
   // Calculates time left for the Cooldown Timer
@@ -922,7 +960,12 @@ function App() {
         {tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
-              cityNodeCount={cityNodeCount} 
+              cityNodeCount={cityNodeCount}
+              isActiveGPSTracking={isActiveGPSTracking}
+              startActiveGPS={startActiveGPS}
+              stopActiveGPS={stopActiveGPS}
+              activeGPSDistance={activeGPSDistance}
+              activeGPSError={activeGPSError} 
            />
         ) : tab === 'WALLET' ? (
            <Inventory 
