@@ -110,58 +110,52 @@ const MapTab = ({
         />
       </MapContainer>
 
-      {/* OVERLAY HUD CONTAINER */}
-      <div className="absolute bottom-24 left-4 right-4 flex flex-col gap-3 z-[1000]">
+      {/* ULTRA-COMPACT OVERLAY HUD */}
+      <div className="absolute bottom-20 left-4 right-4 flex flex-col gap-2 z-[1000]">
         
-        <div className="bg-black/90 backdrop-blur-md border border-cyan-500/50 rounded-lg p-4 shadow-[0_0_20px_rgba(34,211,238,0.15)]">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h3 className="text-sm font-black text-white tracking-widest flex items-center uppercase">
-                {isActiveGPSTracking ? (
-                  <Crosshair size={14} className="mr-2 text-cyan-400 animate-pulse" />
-                ) : (
-                  <MapPin size={14} className="mr-2 text-gray-500" />
-                )}
-                Active Mapping
-              </h3>
-              <p className="text-[9px] text-gray-400 mt-1 uppercase tracking-wider">Earn 50 RP per 50m mapped</p>
-            </div>
-            
-            <button 
-              onClick={isActiveGPSTracking ? stopActiveGPS : startActiveGPS}
-              className={`px-4 py-2 rounded font-black text-[10px] tracking-widest transition-all ${
-                isActiveGPSTracking 
-                  ? 'bg-red-900/40 text-red-400 border border-red-500/50 hover:bg-red-900 shadow-[0_0_10px_rgba(239,68,68,0.2)]' 
-                  : 'bg-cyan-900/40 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-900 hover:text-white shadow-[0_0_10px_rgba(34,211,238,0.2)]'
-              }`}
-            >
-              {isActiveGPSTracking ? 'ABORT TRACKING' : 'INITIATE'}
-            </button>
-          </div>
-
-          <div className="bg-gray-900/80 rounded border border-gray-800 p-3 flex justify-between items-center">
-            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Distance Mapped</span>
-            <span className="text-xl font-mono font-bold text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-              {Math.floor(activeGPSDistance)} <span className="text-xs text-cyan-500">m</span>
+        {/* ACTIVE MAPPING CONTROL BAR */}
+        <div className="bg-black/90 backdrop-blur-md border border-cyan-500/50 rounded-lg p-3 flex justify-between items-center shadow-[0_0_15px_rgba(34,211,238,0.15)]">
+          <div className="flex flex-col">
+            <span className="text-[9px] text-gray-400 uppercase font-black tracking-widest flex items-center">
+              {isActiveGPSTracking ? (
+                <><Crosshair size={10} className="mr-1 text-cyan-400 animate-pulse" /> TRACKING</>
+              ) : (
+                <><MapPin size={10} className="mr-1 text-gray-500" /> PASSIVE</>
+              )}
+            </span>
+            <span className="text-sm font-mono font-bold text-white mt-0.5">
+              {Math.floor(activeGPSDistance)} <span className="text-[10px] text-cyan-500">MAPPED</span>
             </span>
           </div>
+          
+          <button 
+            onClick={isActiveGPSTracking ? stopActiveGPS : startActiveGPS}
+            className={`px-5 py-2 rounded font-black text-[10px] tracking-widest transition-all ${
+              isActiveGPSTracking 
+                ? 'bg-red-900/40 text-red-400 border border-red-500/50 hover:bg-red-900' 
+                : 'bg-cyan-900/40 text-cyan-400 border border-cyan-500/50 hover:bg-cyan-900 hover:text-white'
+            }`}
+          >
+            {isActiveGPSTracking ? 'ABORT' : 'INITIATE'}
+          </button>
         </div>
 
-        <div className="bg-black/80 backdrop-blur border border-gray-800 p-4 rounded-lg">
-           <div className="flex justify-between items-center">
-              <div>
-                 <p className="text-[9px] text-gray-500 uppercase">Current Sector</p>
-                 <p className="text-xs font-mono text-cyan-400">{liveSector}</p>
-              </div>
-              <div className="text-right">
-                 <p className="text-[9px] text-gray-500 uppercase">Coverage Density</p>
-                 <div className="flex items-center justify-end space-x-1">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    <p className="text-xs font-bold text-white">{cityNodeCount} NODES</p>
-                 </div>
-              </div>
-           </div>
+        {/* TINY SECTOR STRIP */}
+        <div className="bg-black/70 backdrop-blur-sm border border-gray-800 rounded-lg p-2 px-3 flex justify-between items-center">
+           <span className="text-[9px] text-gray-500 font-mono tracking-widest uppercase">
+              SEC: <span className="text-cyan-400">{liveSector}</span>
+           </span>
+           <span className="text-[9px] text-green-400 font-mono font-bold tracking-widest flex items-center">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse mr-1.5"></span>
+              {cityNodeCount} NODES
+           </span>
         </div>
+
+        {activeGPSError && (
+          <p className="text-[9px] text-red-400 tracking-widest uppercase font-bold text-center border border-red-900/50 bg-red-900/40 py-1.5 rounded-lg mt-1">
+            ⚠️ {activeGPSError}
+          </p>
+        )}
       </div>
     </div>
   );
