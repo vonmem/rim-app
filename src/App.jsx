@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle } from 'lucide-react'
+import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle, Crosshair } from 'lucide-react'
 import * as h3 from 'h3-js';
 
 // --- COMPONENTS ---
 import MiningRig from './components/MiningRig'
 import StatsPanel from './components/StatsPanel'
 import MapTab from './components/MapTab';
+import MissionBoard from './components/MissionBoard';
 import Inventory from './components/Inventory';
 import Marketplace from './components/Marketplace';
 
@@ -73,6 +74,7 @@ const supabase = createClient(
 function App() {
 // --- STATE ---
   const [tab, setTab] = useState('TERMINAL');
+  const [activeMode, setActiveMode] = useState('PASSIVE');
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState(0);
   const [status, setStatus] = useState('IDLE');
@@ -987,7 +989,9 @@ function App() {
           }
         `}</style>
 
-        {tab === 'MAP' ? (
+        {tab === 'MISSIONS' ? (
+           <MissionBoard setActiveMode={setActiveMode} setTab={setTab} />
+        ) : tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
               cityNodeCount={cityNodeCount}
@@ -1173,20 +1177,23 @@ function App() {
       </div>
 
       {/* FOOTER */}
-      <div className="grid grid-cols-5 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
-        <button onClick={() => setTab('TERMINAL')} className={`p-4 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
+      <div className="grid grid-cols-6 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
+        <button onClick={() => setTab('TERMINAL')} className={`p-3 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
           <Terminal size={18} /><span className="text-[8px] mt-1 font-bold">GRID</span>
         </button>
-        <button onClick={() => setTab('MAP')} className={`p-4 flex flex-col items-center ${tab === 'MAP' ? 'text-white' : 'text-gray-600'}`}>
+        <button onClick={() => setTab('MISSIONS')} className={`p-3 flex flex-col items-center ${tab === 'MISSIONS' ? 'text-white' : 'text-gray-600'}`}>
+          <Crosshair size={18} /><span className="text-[8px] mt-1 font-bold">MISSIONS</span>
+        </button>
+        <button onClick={() => setTab('MAP')} className={`p-3 flex flex-col items-center ${tab === 'MAP' ? 'text-white' : 'text-gray-600'}`}>
           <MapPin size={18} /><span className="text-[8px] mt-1 font-bold">MAP</span>
         </button>
-        <button onClick={() => setTab('WALLET')} className={`p-4 flex flex-col items-center ${tab === 'WALLET' ? 'text-white' : 'text-gray-600'}`}>
+        <button onClick={() => setTab('WALLET')} className={`p-3 flex flex-col items-center ${tab === 'WALLET' ? 'text-white' : 'text-gray-600'}`}>
           <Wallet size={18} /><span className="text-[8px] mt-1 font-bold">WALLET</span>
         </button>
-        <button onClick={() => setTab('SQUAD')} className={`p-4 flex flex-col items-center ${tab === 'SQUAD' ? 'text-white' : 'text-gray-600'}`}>
+        <button onClick={() => setTab('SQUAD')} className={`p-3 flex flex-col items-center ${tab === 'SQUAD' ? 'text-white' : 'text-gray-600'}`}>
           <Users size={18} /><span className="text-[8px] mt-1 font-bold">SQUAD</span>
         </button>
-        <button onClick={() => setTab('MARKET')} className={`p-4 flex flex-col items-center ${tab === 'MARKET' ? 'text-white' : 'text-gray-600'}`}>
+        <button onClick={() => setTab('MARKET')} className={`p-3 flex flex-col items-center ${tab === 'MARKET' ? 'text-white' : 'text-gray-600'}`}>
           <ShoppingCart size={18} /><span className="text-[8px] mt-1 font-bold">BLACK MARKET</span>
         </button>
       </div>
