@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle } from 'lucide-react'
+import * as h3 from 'h3-js';
 
 // --- COMPONENTS ---
 import MiningRig from './components/MiningRig'
@@ -695,22 +696,51 @@ function App() {
 
   // --- ACTIVE MAPPING: Reward when user moves 50m (Standard Drop) ---
   const ACTIVE_MAP_BOUNTY_RP = 50;
+  
   const handleLocationReward = async (distance, coords) => {
-    // Standard Drop: flat bounty into balance
+    const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (!safeUserId) return;
+
+    // 1. Calculate their exact Hexagon Sector (Resolution 9)
+    const h3Sector = h3.latLngToCell(coords.lat, coords.lng, 9);
+
+    // 2. 🛑 GEOFENCING CHECK: Is this a restricted zone?
+    // We ask Supabase if this exact H3 string exists in our blacklist table.
+    const { data: restrictedZone } = await supabase
+      .from('restricted_zones')
+      .select('h3_index, description')
+      .eq('h3_index', h3Sector)
+      .maybeSingle();
+
+    if (restrictedZone) {
+      // User is in a danger zone! Stop the function. No RP, no data saved.
+      showToast(`🛑 RESTRICTED ZONE: ${restrictedZone.description || 'Tracking Paused'}`, 'error');
+      return; 
+    }
+
+    // 3. 💰 SAFE ZONE: Give them their RP
     const newBalance = balanceRef.current + ACTIVE_MAP_BOUNTY_RP;
     setBalance(newBalance);
     balanceRef.current = newBalance;
 
-    const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-    if (safeUserId) {
-      await supabase.from('users').update({ balance: balanceRef.current }).eq('id', safeUserId);
-    }
+    await supabase.from('users').update({ balance: balanceRef.current }).eq('id', safeUserId);
 
-    showToast(`📍 +${ACTIVE_MAP_BOUNTY_RP} RP | 50m Mapped!`, 'success');
+    // 4. 📡 MONETIZATION: Save the GPS footprint for B2B sales
+    const { error: telemetryError } = await supabase.from('map_telemetry').insert({
+      user_id: safeUserId,
+      lat: coords.lat,
+      lng: coords.lng,
+      h3_index: h3Sector
+    });
+
+    if (telemetryError) {
+      console.error("Failed to save telemetry data:", telemetryError);
+    } else {
+      showToast(`📍 +${ACTIVE_MAP_BOUNTY_RP} RP | Data Uploaded`, 'success');
+    }
 
     // Zone Stub: future GPS Booster (multiplier timer in Supabase instead of flat payout)
     // if (isUnexploredZone(coords)) {
-    //   // Apply GPS Booster: extend multiplier timer in Supabase (like Signal Boosters)
     //   await supabase.from('users').update({ booster_expiry: ... }).eq('id', safeUserId);
     // }
   };
