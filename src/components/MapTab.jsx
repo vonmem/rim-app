@@ -111,7 +111,7 @@ const MapTab = ({
       </MapContainer>
 
       {/* ULTRA-COMPACT OVERLAY HUD (Pushed closer to tabs) */}
-      <div className="absolute bottom-[70px] left-4 right-4 flex flex-col gap-2 z-[1000]">
+      <div className="absolute bottom-[60px] left-4 right-4 flex flex-col gap-2 z-[1000]">
         
         {/* 🚨 SAFETY ADVISORY (Only visible when NOT tracking) */}
         {!isActiveGPSTracking && (
