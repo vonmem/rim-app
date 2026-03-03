@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Polygon, useMap, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as h3 from 'h3-js';
-import { MapPin, Wifi, Crosshair } from 'lucide-react';
+import { MapPin, Wifi, Crosshair, AlertTriangle } from 'lucide-react';
 
 // Helper to smooth-pan the map when the user moves
 function ChangeView({ center }) {
@@ -110,9 +110,19 @@ const MapTab = ({
         />
       </MapContainer>
 
-      {/* ULTRA-COMPACT OVERLAY HUD */}
-      <div className="absolute bottom-20 left-4 right-4 flex flex-col gap-2 z-[1000]">
+      {/* ULTRA-COMPACT OVERLAY HUD (Pushed closer to tabs) */}
+      <div className="absolute bottom-[70px] left-4 right-4 flex flex-col gap-2 z-[1000]">
         
+        {/* 🚨 SAFETY ADVISORY (Only visible when NOT tracking) */}
+        {!isActiveGPSTracking && (
+          <div className="bg-red-950/60 backdrop-blur-md border border-red-900/60 rounded-lg p-3 flex items-start shadow-[0_0_15px_rgba(220,38,38,0.15)] transition-all">
+            <AlertTriangle size={14} className="text-red-500 mr-2 flex-shrink-0 mt-0.5 animate-pulse" />
+            <p className="text-[9px] text-red-200/80 leading-relaxed uppercase tracking-wider font-medium">
+              <span className="text-red-400 font-bold">Operator Advisory:</span> Stay vigilant. Do not trespass, enter restricted zones, or compromise personal safety while mapping. You assume all risks.
+            </p>
+          </div>
+        )}
+
         {/* ACTIVE MAPPING CONTROL BAR */}
         <div className="bg-black/90 backdrop-blur-md border border-cyan-500/50 rounded-lg p-3 flex justify-between items-center shadow-[0_0_15px_rgba(34,211,238,0.15)]">
           <div className="flex flex-col">
@@ -141,7 +151,7 @@ const MapTab = ({
         </div>
 
         {/* TINY SECTOR STRIP */}
-        <div className="bg-black/70 backdrop-blur-sm border border-gray-800 rounded-lg p-2 px-3 flex justify-between items-center">
+        <div className="bg-black/80 backdrop-blur-sm border border-gray-800 rounded-lg p-2 px-3 flex justify-between items-center">
            <span className="text-[9px] text-gray-500 font-mono tracking-widest uppercase">
               SEC: <span className="text-cyan-400">{liveSector}</span>
            </span>
