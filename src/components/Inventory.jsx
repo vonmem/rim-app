@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { Wallet, Box, Clock, Zap, Users, X, Check, Activity } from 'lucide-react';
+import { usePrivy } from '@privy-io/react-auth'; // 🚨 IMPORT PRIVY HOOK
 
 const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABLES, deployConsumable }) => {
   // Modal State
   const [selectedItem, setSelectedItem] = useState(null);
   const [isDeploying, setIsDeploying] = useState(false);
+
+  // 🚨 PRIVY STATE EXTRACTOR
+  const { login, authenticated, user } = usePrivy();
+  const walletAddress = user?.wallet?.address;
   
   const history = [
     { id: 1, type: 'MINE', amount: '+45.20', time: '2 mins ago', icon: <Zap size={12}/> },
@@ -42,6 +47,35 @@ const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABL
          <h2 className="text-xl font-bold flex items-center"><Wallet className="mr-2" /> ASSETS</h2>
       </div>
 
+      {/* 🚨 THE NEW PRIVY WEB3 BRIDGE CARD */}
+      <div className="bg-gray-900 border border-purple-500/30 rounded-lg p-4 mb-6 shadow-[0_0_20px_rgba(168,85,247,0.1)]">
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-sm font-black text-white tracking-widest uppercase flex items-center">
+              <span className={`w-2 h-2 rounded-full mr-2 ${authenticated ? 'bg-green-500 animate-pulse' : 'bg-purple-500 animate-pulse'}`}></span>
+              {authenticated ? 'Secure Network' : 'Solana Network'}
+            </h3>
+            <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">
+              {authenticated ? 'Embedded Wallet Active' : 'Bridge Required for NFT Tiers'}
+            </p>
+          </div>
+          
+          {authenticated && walletAddress ? (
+            <div className="bg-purple-900/40 border border-purple-500/50 px-3 py-1.5 rounded text-purple-300 font-mono text-[10px] shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+              {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+            </div>
+          ) : (
+            <button 
+              onClick={login}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] tracking-widest uppercase rounded transition-colors shadow-[0_0_15px_rgba(147,51,234,0.4)]"
+            >
+              CONNECT WALLET
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* --- EXISTING RP BALANCE CARD --- */}
       <div className="w-full bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-xl p-6 mb-8 relative overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.8)]">
          <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500/50 animate-pulse"></div>
          <div className="absolute -top-4 -right-4 p-4 opacity-10"><Wallet size={100} /></div>
@@ -61,6 +95,7 @@ const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABL
          </div>
       </div>
 
+      {/* --- STORAGE & HISTORY --- */}
       <div className="mb-8">
          <p className="text-[10px] text-gray-500 tracking-widest uppercase mb-3 flex items-center">
             <Box size={10} className="mr-1"/> STORAGE
