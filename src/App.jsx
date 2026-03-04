@@ -88,6 +88,7 @@ function App() {
   "c_energy": 0, "c_o2": 0, "c_cryo": 0, "tw_bat": 0, "tw_dolphin": 0, "tw_apex": 0
 });
   const { user: privyUser, authenticated } = usePrivy();
+  const [hasMainnetLicense, setHasMainnetLicense] = useState(false);
 
   // Forces the UI to re-render every second so the Cooldown Timer visually ticks down!
   const [, setTick] = useState(0);
@@ -183,6 +184,9 @@ function App() {
           setBalance(safeBalance);
           balanceRef.current = safeBalance;
           
+          // 🚨 NEW: Load their Mainnet License Status!
+          setHasMainnetLicense(data.has_mainnet_license || false);
+          
           // 🚨 THE SQUAD FIX: Fetch real downstream node count
           const { count: refCount } = await supabase
             .from('users')
@@ -239,11 +243,15 @@ function App() {
             balance: 100,
             referred_by: referrerId,
             inventory: [] 
+            // Note: We don't need to pass has_mainnet_license here because our SQL default handles it!
           });
           
           setBalance(100);
           balanceRef.current = 100;
           setInventory([]);
+          
+          // 🚨 NEW: Set to false for brand new users
+          setHasMainnetLicense(false);
           
           setIsDataLoaded(true); 
         }
@@ -385,6 +393,34 @@ function App() {
       syncWalletToDatabase();
     }
   }, [authenticated, privyUser, user]);
+
+  // --- MAINNET ACTIVATION HANDLER ---
+  const handleActivateMainnet = async () => {
+    // 1. Optimistic UI Update (Instantly turn the card green for the user)
+    setHasMainnetLicense(true);
+    
+    // Optional: Give them a 5,000 RP rebate instantly as a thank you!
+    setBalance(prev => prev + 5000); 
+
+    const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (!safeUserId) return;
+
+    // 2. Permanently save it to the database
+    const { error } = await supabase
+      .from('users')
+      .update({ 
+        has_mainnet_license: true,
+        balance: balance + 5000 // Update their DB balance with the rebate
+      })
+      .eq('id', safeUserId);
+
+    if (error) {
+      console.error("Failed to save Mainnet License to DB:", error);
+      // In a production app, you might want to retry this if it fails!
+    } else {
+      console.log("Mainnet License permanently secured in database.");
+    }
+  };
 
   // --- 3.5. CONSUMABLES: BYPASS COOLDOWN ---
   const buyConsumable = async () => {
@@ -1050,7 +1086,9 @@ function App() {
               balance={balance}                       // Checks if they can afford items
               userInventory={inventory}               // Checks if they already own a rig
               onBuyItem={handleBuyItem}               // Your OLD function to buy a Rig
-              buyBlackMarketItem={buyBlackMarketItem} // Your NEW function to buy Consumables
+              buyBlackMarketItem={buyBlackMarketItem}
+              hasMainnetLicense={hasMainnetLicense}
+              onActivateMainnet={handleActivateMainnet} // Your NEW function to buy Consumables
            />
         ) : tab === 'SQUAD' ? (
            // 🚨 THE NEW INLINE SQUAD TAB (No more z-[60] absolute overlay!)
