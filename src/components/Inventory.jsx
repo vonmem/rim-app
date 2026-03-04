@@ -9,7 +9,12 @@ const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABL
 
   // 🚨 PRIVY STATE EXTRACTOR
   const { login, authenticated, user } = usePrivy();
-  const walletAddress = user?.wallet?.address || user?.linkedAccounts?.find(account => account.type === 'wallet')?.address;
+  // Look for an external Phantom wallet first.
+  // If none, hunt through their linked accounts for the Privy SOLANA embedded wallet!
+  const walletAddress = 
+    user?.wallet?.address || 
+    user?.linkedAccounts?.find(a => a.type === 'wallet' && a.walletClientType === 'privy' && a.chainType === 'solana')?.address ||
+    user?.linkedAccounts?.find(a => a.type === 'wallet' && a.walletClientType === 'privy')?.address;
   
   const history = [
     { id: 1, type: 'MINE', amount: '+45.20', time: '2 mins ago', icon: <Zap size={12}/> },
