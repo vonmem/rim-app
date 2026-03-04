@@ -1,8 +1,133 @@
 import React, { useState } from 'react';
-import { Shield, ShoppingBag, X, Check } from 'lucide-react';
+import { Shield, ShoppingBag, X, Check, ShieldCheck, Zap, Lock, Unlock, Cpu, Activity } from 'lucide-react';
 
-const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, buyBlackMarketItem }) => {
-  // Modal State for BOTH Rigs and Consumables
+// 🚨 WEB3 & PRIVY IMPORTS
+import { useWallets } from '@privy-io/react-auth';
+import { useSignAndSendTransaction } from '@privy-io/react-auth/solana';
+import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
+
+// --- MAINNET ACTIVATION SUB-COMPONENT ---
+const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { wallets } = useWallets();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
+
+  const handlePurchaseLicense = async () => {
+    setIsProcessing(true);
+    try {
+      const solanaWallet = wallets.find((w) => w.chainType === 'solana');
+      if (!solanaWallet) {
+        alert("Please connect your Secure Network in the Wallet tab first!");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Connect to Solana Devnet for testing (change to 'mainnet-beta' for launch)
+      const connection = new Connection('https://api.devnet.solana.com');
+      
+      // 🚨 REPLACE WITH YOUR ACTUAL PHANTOM WALLET ADDRESS 🚨
+      const TREASURY_ADDRESS = new PublicKey("2y5gDC79ffAfHJiiBczyKQRoR2DP1VfNWoDgfTQ7Nnqo");
+      const fromPubkey = new PublicKey(solanaWallet.address);
+
+      // Build the 0.03 SOL transfer
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: fromPubkey,
+          toPubkey: TREASURY_ADDRESS,
+          lamports: 0.03 * LAMPORTS_PER_SOL,
+        })
+      );
+
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = fromPubkey;
+
+      // Trigger Privy Modal to sign
+      const { signature } = await signAndSendTransaction({ 
+        transaction, 
+        wallet: solanaWallet 
+      });
+
+      console.log("Payment successful! Tx Hash:", signature);
+      alert("Mainnet Node Activated! Welcome to the Syndicate.");
+      
+      // Tell the parent component to update Supabase!
+      if (onSuccess) onSuccess();
+
+    } catch (error) {
+      console.error("Payment failed or cancelled:", error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (hasLicense) {
+    return (
+      <div className="bg-gray-900 border border-green-500/50 rounded-xl p-5 mb-8 shadow-[0_0_20px_rgba(34,197,94,0.15)] relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-10"><ShieldCheck size={80} /></div>
+        <div className="flex items-center text-green-400 mb-2">
+          <ShieldCheck size={20} className="mr-2" />
+          <h3 className="font-bold tracking-widest uppercase">Mainnet Node Active</h3>
+        </div>
+        <p className="text-xs text-gray-400 mt-2 tracking-wide">
+          Your rig is fully authenticated. Withdrawals are unlocked and your 10% mining boost is active.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-gray-900 to-black border border-yellow-500/40 rounded-xl p-5 mb-8 shadow-[0_0_25px_rgba(234,179,8,0.15)] relative overflow-hidden group">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600 animate-pulse"></div>
+      
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="text-lg font-black text-white tracking-widest uppercase flex items-center drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+            <Cpu className="mr-2 text-yellow-400" size={20} />
+            Lvl 1 Uplink License
+          </h3>
+          <p className="text-[10px] text-gray-400 tracking-widest uppercase mt-1">Sybil-Resistance Protocol</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-gray-500 uppercase tracking-widest">Cost</p>
+          <p className="text-lg font-mono font-bold text-yellow-400 drop-shadow-[0_0_10px_rgba(234,179,8,0.4)]">0.03 SOL</p>
+          <p className="text-[9px] text-gray-500">~$4.99 USD</p>
+        </div>
+      </div>
+
+      <div className="bg-black/50 rounded-lg p-3 border border-gray-800 mb-5 space-y-2">
+        <div className="flex items-center text-xs">
+          <Unlock size={14} className="text-cyan-400 mr-2" />
+          <span className="text-gray-300"><strong className="text-white">Unlocks</strong> full RP-to-$RIM withdrawals</span>
+        </div>
+        <div className="flex items-center text-xs">
+          <Activity size={14} className="text-green-400 mr-2" />
+          <span className="text-gray-300">Instantly receive a <strong className="text-green-400">$5.00 $RIM Rebate</strong> (Locked)</span>
+        </div>
+        <div className="flex items-center text-xs">
+          <Zap size={14} className="text-yellow-400 mr-2" />
+          <span className="text-gray-300">Permanent <strong className="text-yellow-400">+10%</strong> Global Mining Boost</span>
+        </div>
+      </div>
+
+      <button 
+        onClick={handlePurchaseLicense}
+        disabled={isProcessing}
+        className="w-full py-3 bg-yellow-600 hover:bg-yellow-500 text-black font-black text-xs tracking-widest uppercase rounded flex items-center justify-center transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)] hover:shadow-[0_0_25px_rgba(234,179,8,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isProcessing ? (
+          <span className="animate-pulse flex items-center"><Activity size={16} className="mr-2 animate-spin"/> AWAITING SIGNATURE...</span>
+        ) : (
+          <><Lock size={16} className="mr-2"/> INITIATE MAINNET BRIDGE</>
+        )}
+      </button>
+    </div>
+  );
+};
+
+// --- MAIN MARKETPLACE COMPONENT ---
+// 🚨 Added hasMainnetLicense and onActivateMainnet to the props
+const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, buyBlackMarketItem, hasMainnetLicense, onActivateMainnet }) => {
   const [confirmItem, setConfirmItem] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
 
@@ -10,11 +135,10 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
     if (!confirmItem) return;
     setLoadingId(confirmItem.id);
     
-    // 🚨 SMART ROUTING: Check if it's a Rig or a Consumable!
     if (confirmItem.type === 'RIG' || confirmItem.type === 'GOD') {
         await onBuyItem(confirmItem);
     } else {
-        await buyBlackMarketItem(confirmItem, autoDeploy); // Passes the flag!
+        await buyBlackMarketItem(confirmItem, autoDeploy);
     }
     
     setLoadingId(null);
@@ -30,7 +154,13 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
         <p className="text-[10px] text-gray-500 uppercase tracking-wider">Unregulated Hardware & Contraband</p>
       </div>
 
-      {/* SECTION 1: CONTRABAND (Consumables & Boosters) */}
+      {/* 🚨 SECTION 1: MAINNET ACTIVATION (WEB3) */}
+      <MainnetActivationCard 
+        hasLicense={hasMainnetLicense} 
+        onSuccess={onActivateMainnet} 
+      />
+
+      {/* SECTION 2: CONTRABAND (Consumables & Boosters) */}
       <div className="mb-8">
         <h3 className="text-sm font-bold tracking-widest text-red-400 mb-3 flex items-center">
           <span className="mr-2">⚠️</span> CONTRABAND & EXPLOITS
@@ -48,7 +178,6 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
               </div>
               
               <button 
-                // 🚨 CHANGED: Now opens the Modal instead of buying instantly!
                 onClick={() => setConfirmItem(item)}
                 disabled={item.type !== 'PREMIUM' && balance < item.costRP}
                 className={`px-3 py-2 rounded text-[9px] font-black tracking-widest border transition-all ${
@@ -66,7 +195,7 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
         </div>
       </div>
 
-      {/* SECTION 2: HARDWARE (The Trading Card Gallery) */}
+      {/* SECTION 3: HARDWARE (The Trading Card Gallery) */}
       <div>
         <p className="text-[10px] text-gray-500 tracking-widest uppercase mb-3 flex items-center">
             <Shield size={10} className="mr-1"/> NEURAL RIGS (PERMANENT)
@@ -83,7 +212,7 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
                  key={tier.id} 
                  onClick={() => {
                     if (isOwned) return;
-                    setConfirmItem(tier); // Opens the Modal
+                    setConfirmItem(tier);
                  }}
                  className={`relative rounded-xl flex flex-col overflow-hidden transition-all duration-300 ${
                    isOwned ? 'cursor-default' : 'cursor-pointer hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:-translate-y-1'
@@ -137,7 +266,6 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
                  <div className="inline-block bg-gray-900 border border-gray-700 rounded px-4 py-2 mb-3">
                     <p className="text-[8px] text-gray-500 uppercase tracking-widest">Total Cost</p>
                     <p className="text-lg font-mono text-cyan-400 font-bold">
-                      {/* 🚨 DYNAMIC PRICE LOGIC: Checks Premium vs RP vs Hardware Thresholds */}
                       {confirmItem.type === 'PREMIUM' ? confirmItem.costCrypto : 
                        confirmItem.costRP ? `${confirmItem.costRP.toLocaleString()} RP` : 
                        typeof confirmItem.threshold === 'number' ? `${confirmItem.threshold.toLocaleString()} RP` : 
@@ -146,14 +274,11 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
                  </div>
                  
                  <p className="text-[10px] text-gray-400">
-                    {/* 🚨 DYNAMIC DESC: Shows item desc OR rig stats */}
                     {confirmItem.desc || `Permanently unlocks ${confirmItem.multiplier}x base mining power.`}
                  </p>
               </div>
 
-              {/* 🚨 DYNAMIC BUTTON LAYOUT */}
               {(confirmItem.type === 'RIG' || confirmItem.type === 'GOD') ? (
-                 // --- RIG BUTTONS (Standard Cancel / Confirm) ---
                  <div className="grid grid-cols-2 gap-3 mt-2">
                     <button 
                        onClick={() => setConfirmItem(null)}
@@ -170,18 +295,17 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
                     </button>
                  </div>
               ) : (
-                 // --- CONSUMABLE BUTTONS (Store vs Inject) ---
                  <div className="flex flex-col space-y-3 mt-2">
                     <div className="grid grid-cols-2 gap-3">
                        <button 
-                          onClick={() => executePurchase(false)} // false = Stash
+                          onClick={() => executePurchase(false)}
                           disabled={loadingId === confirmItem.id}
                           className="py-3 rounded bg-gray-800 text-gray-300 border border-gray-600 font-bold text-[9px] hover:bg-gray-700 hover:text-white flex items-center justify-center tracking-widest transition-colors"
                        >
                           {loadingId === confirmItem.id ? '...' : 'BUY & STASH'}
                        </button>
                        <button 
-                          onClick={() => executePurchase(true)} // true = Deploy Now
+                          onClick={() => executePurchase(true)}
                           disabled={loadingId === confirmItem.id}
                           className="py-3 rounded bg-cyan-900/50 text-cyan-400 border border-cyan-500 font-bold text-[9px] hover:bg-cyan-400 hover:text-black flex items-center justify-center tracking-widest transition-colors shadow-[0_0_10px_rgba(34,211,238,0.3)]"
                        >
