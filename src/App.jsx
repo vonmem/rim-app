@@ -1122,6 +1122,8 @@ function App() {
               CONSUMABLES={CONSUMABLES} 
               deployConsumable={deployConsumable}
               transactions={transactions}
+              hasMainnetLicense={hasMainnetLicense}
+              onActivateMainnet={handleActivateMainnet}
            />
         ) : tab === 'MARKET' ? (
            <Marketplace 
@@ -1131,8 +1133,6 @@ function App() {
               userInventory={inventory}               // Checks if they already own a rig
               onBuyItem={handleBuyItem}               // Your OLD function to buy a Rig
               buyBlackMarketItem={buyBlackMarketItem}
-              hasMainnetLicense={hasMainnetLicense}
-              onActivateMainnet={handleActivateMainnet} // Your NEW function to buy Consumables
            />
         ) : tab === 'SQUAD' ? (
            // 🚨 THE NEW INLINE SQUAD TAB (No more z-[60] absolute overlay!)
