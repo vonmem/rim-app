@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle, Crosshair } from 'lucide-react'
 import * as h3 from 'h3-js';
+import { usePrivy } from '@privy-io/react-auth';
 
 // --- COMPONENTS ---
 import MiningRig from './components/MiningRig'
@@ -86,6 +87,7 @@ function App() {
   const [consumables, setConsumables] = useState({
   "c_energy": 0, "c_o2": 0, "c_cryo": 0, "tw_bat": 0, "tw_dolphin": 0, "tw_apex": 0
 });
+  const { user: privyUser, authenticated } = usePrivy();
 
   // Forces the UI to re-render every second so the Cooldown Timer visually ticks down!
   const [, setTick] = useState(0);
@@ -353,6 +355,36 @@ function App() {
       clearInterval(syncer);
     };
   }, [user, status]);
+
+  // --- INVISIBLE WEB3 SYNC ---
+  useEffect(() => {
+    // 1. Hunt for the Solana address just like we did in the Inventory tab
+    const walletAddress = 
+      privyUser?.wallet?.address || 
+      privyUser?.linkedAccounts?.find(a => a.type === 'wallet' && a.walletClientType === 'privy' && a.chainType === 'solana')?.address ||
+      privyUser?.linkedAccounts?.find(a => a.type === 'wallet' && a.walletClientType === 'privy')?.address;
+
+    // 2. Grab their Telegram ID
+    const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+
+    // 3. If both exist, silently update their Supabase profile
+    if (authenticated && walletAddress && safeUserId) {
+      const syncWalletToDatabase = async () => {
+        const { error } = await supabase
+          .from('users')
+          .update({ wallet_address: walletAddress })
+          .eq('id', safeUserId);
+        
+        if (error) {
+          console.error("Failed to sync Web3 wallet to database:", error);
+        } else {
+          console.log("Web3 Wallet synced to Supabase successfully.");
+        }
+      };
+      
+      syncWalletToDatabase();
+    }
+  }, [authenticated, privyUser, user]);
 
   // --- 3.5. CONSUMABLES: BYPASS COOLDOWN ---
   const buyConsumable = async () => {
