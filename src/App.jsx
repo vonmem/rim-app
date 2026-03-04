@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle, Crosshair } from 'lucide-react'
 import * as h3 from 'h3-js';
@@ -89,6 +89,35 @@ function App() {
 });
   const { user: privyUser, authenticated } = usePrivy();
   const [hasMainnetLicense, setHasMainnetLicense] = useState(false);
+
+  // Ledger: real transaction history from localStorage (key: sonar_ledger)
+  const [transactions, setTransactions] = useState(() => {
+    try {
+      const raw = localStorage.getItem('sonar_ledger');
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const addTransaction = useCallback((type, amount, label) => {
+    const id = Date.now();
+    const timestamp = new Date().toISOString();
+    setTransactions((prev) => {
+      const next = [{ id, type, amount: String(amount), label, timestamp }, ...prev].slice(0, 20);
+      try {
+        localStorage.setItem('sonar_ledger', JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
+  }, []);
+
+  const addTransactionRef = useRef(addTransaction);
+  addTransactionRef.current = addTransaction;
+
+  // Hourly mining ledger: flush earned RP to ledger every real hour
+  const lastHourFlushRef = useRef(Date.now());
+  const hourlyEarnedRef = useRef(0);
 
   // Forces the UI to re-render every second so the Cooldown Timer visually ticks down!
   const [, setTick] = useState(0);
@@ -546,6 +575,7 @@ function App() {
           const { error } = await supabase.from('users').update(dbUpdate).eq('id', safeUserId);
           if (!error) {
               console.log(`✅ Purchase Saved. Auto-Deploy: ${autoDeploy}`);
+              addTransaction('BUY', `-${item.costRP}`, item.name);
           } else {
               console.error("❌ DB Save Error:", error.message);
           }
@@ -642,7 +672,9 @@ function App() {
       clearInterval(godModeRef.current); 
     } else {
       setStatus('MINING');
-      
+      lastHourFlushRef.current = Date.now();
+      hourlyEarnedRef.current = 0;
+
       miningInterval.current = setInterval(() => {
         const now = Date.now();
         const loadFactor = (Math.random() * 0.2) + 0.8; 
@@ -717,6 +749,17 @@ function App() {
         
         setBalance(newBal);
         balanceRef.current = newBal;
+
+        // Hourly ledger: accumulate and flush every real hour
+        hourlyEarnedRef.current += totalEarned;
+        if (now - lastHourFlushRef.current >= 3600000) {
+          const amount = hourlyEarnedRef.current.toFixed(2);
+          if (Number(amount) > 0) {
+            addTransactionRef.current('MINE', `+${amount}`, 'Hourly Yield');
+          }
+          hourlyEarnedRef.current = 0;
+          lastHourFlushRef.current = now;
+        }
       }, 100); 
     }
   };
@@ -1077,7 +1120,8 @@ function App() {
               referralCount={referralCount}
               consumables={consumables} 
               CONSUMABLES={CONSUMABLES} 
-              deployConsumable={deployConsumable} // 🚨 NEW: Passing the trigger down!
+              deployConsumable={deployConsumable}
+              transactions={transactions}
            />
         ) : tab === 'MARKET' ? (
            <Marketplace 

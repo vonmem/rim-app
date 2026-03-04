@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
-import { Wallet, Box, Clock, Zap, Users, X, Check, Activity } from 'lucide-react';
+import { Wallet, Box, Clock, Zap, Users, X, Check, Activity, ShoppingBag } from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth'; // 🚨 IMPORT PRIVY HOOK
 
-const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABLES, deployConsumable }) => {
+// Format ISO timestamp as relative time (e.g. "2 mins ago")
+function formatTimeAgo(iso) {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60000) return 'Just now';
+  if (ms < 3600000) return `${Math.floor(ms / 60000)} mins ago`;
+  if (ms < 86400000) return `${Math.floor(ms / 3600000)} hours ago`;
+  if (ms < 604800000) return `${Math.floor(ms / 86400000)} days ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABLES, deployConsumable, transactions = [] }) => {
   // Modal State
   const [selectedItem, setSelectedItem] = useState(null);
   const [isDeploying, setIsDeploying] = useState(false);
@@ -15,13 +25,6 @@ const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABL
     user?.wallet?.address || 
     user?.linkedAccounts?.find(a => a.type === 'wallet' && a.walletClientType === 'privy' && a.chainType === 'solana')?.address ||
     user?.linkedAccounts?.find(a => a.type === 'wallet' && a.walletClientType === 'privy')?.address;
-  
-  const history = [
-    { id: 1, type: 'MINE', amount: '+45.20', time: '2 mins ago', icon: <Zap size={12}/> },
-    { id: 2, type: 'REFERRAL', amount: '+12.50', time: '15 mins ago', icon: <Users size={12}/> },
-    { id: 3, type: 'RELAY', amount: '-5.00', time: '1 hour ago', icon: <Clock size={12}/> }, 
-    { id: 4, type: 'MINE', amount: '+120.00', time: 'Yesterday', icon: <Zap size={12}/> },
-  ];
 
   const ownedItems = [];
   if (consumables && CONSUMABLES) {
@@ -140,20 +143,29 @@ const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABL
             <Clock size={10} className="mr-1"/> LEDGER (LOCAL CACHE)
          </p>
          <div className="space-y-2">
-            {history.map((tx) => (
-               <div key={tx.id} className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-800/50">
-                  <div className="flex items-center space-x-3">
-                     <div className="p-2 bg-gray-800 rounded-full text-gray-400">{tx.icon}</div>
-                     <div>
-                        <p className="text-[10px] font-black tracking-widest uppercase text-white">{tx.type}</p>
-                        <p className="text-[8px] text-gray-500 uppercase">{tx.time}</p>
-                     </div>
-                  </div>
-                  <span className={`text-[10px] font-mono font-bold ${tx.amount.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
-                     {tx.amount}
-                  </span>
+            {transactions.length === 0 ? (
+               <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-800/50 text-center">
+                  <p className="text-[10px] text-gray-500 uppercase tracking-wider">No transactions yet</p>
                </div>
-            ))}
+            ) : (
+               transactions.map((tx) => (
+                  <div key={tx.id} className="flex justify-between items-center bg-gray-900/50 p-3 rounded-lg border border-gray-800/50">
+                     <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gray-800 rounded-full text-gray-400">
+                           {tx.type === 'MINE' ? <Zap size={12} /> : tx.type === 'BUY' ? <ShoppingBag size={12} /> : <Clock size={12} />}
+                        </div>
+                        <div>
+                           <p className="text-[10px] font-black tracking-widest uppercase text-white">{tx.type}</p>
+                           <p className="text-[8px] text-gray-500 uppercase truncate max-w-[120px]" title={tx.label}>{tx.label}</p>
+                           <p className="text-[8px] text-gray-600 uppercase">{formatTimeAgo(tx.timestamp)}</p>
+                        </div>
+                     </div>
+                     <span className={`text-[10px] font-mono font-bold ${String(tx.amount).startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
+                        {tx.amount} RP
+                     </span>
+                  </div>
+               ))
+            )}
          </div>
       </div>
 
