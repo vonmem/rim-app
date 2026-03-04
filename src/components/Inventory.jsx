@@ -9,7 +9,7 @@ const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABL
 
   // 🚨 PRIVY STATE EXTRACTOR
   const { login, authenticated, user } = usePrivy();
-  const walletAddress = user?.wallet?.address;
+  const walletAddress = user?.wallet?.address || user?.linkedAccounts?.find(account => account.type === 'wallet')?.address;
   
   const history = [
     { id: 1, type: 'MINE', amount: '+45.20', time: '2 mins ago', icon: <Zap size={12}/> },
