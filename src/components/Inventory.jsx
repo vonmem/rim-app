@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Wallet, Box, Clock, Zap, Users, X, Check, Activity, ShoppingBag, Shield, ShieldCheck, Cpu, Lock, Unlock} from 'lucide-react';
-import { usePrivy } from '@privy-io/react-auth';
-import { useSolanaWallets, useSignAndSendTransaction } from '@privy-io/react-auth/solana';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { useSignAndSendTransaction } from '@privy-io/react-auth/solana';
 import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // Format ISO timestamp as relative time (e.g. "2 mins ago")
@@ -18,15 +18,15 @@ function formatTimeAgo(iso) {
 const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
    const [isProcessing, setIsProcessing] = useState(false);
    
-   // 🚨 UPDATED: Using strict Solana hooks and auth checks
+   // We use the standard, stable hooks that we know work in v3.15!
    const { authenticated, login } = usePrivy();
-   const { wallets: solanaWallets, createWallet } = useSolanaWallets();
+   const { wallets } = useWallets();
    const { signAndSendTransaction } = useSignAndSendTransaction();
 
    const handlePurchaseLicense = async () => {
      setIsProcessing(true);
      try {
-       // 1. If they aren't logged into Privy yet, force them to log in!
+       // 1. Force Login if they haven't connected
        if (!authenticated) {
          alert("Please connect your Secure Network first!");
          login();
@@ -34,16 +34,12 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
          return;
        }
 
-       // 2. Grab their Solana wallet directly from the strict Solana hook
-       const solanaWallet = solanaWallets[0]; 
+       // 2. Find the Solana wallet Privy auto-created
+       const solanaWallet = wallets.find((w) => w.chainType === 'solana');
 
        if (!solanaWallet) {
-         alert("Provisioning Solana Network... Please wait a few seconds and click again.");
-         try {
-            await createWallet(); 
-         } catch (e) {
-            console.error("Failed to generate wallet", e);
-         }
+         // Since the Dashboard handles creation now, we just tell them to wait a sec!
+         alert("Your Solana Network is still provisioning in the background. Please wait 10 seconds and click again!");
          setIsProcessing(false);
          return;
        }
