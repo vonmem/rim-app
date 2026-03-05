@@ -66,7 +66,8 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
        // 4. Trigger Privy Modal!
        const { signature } = await signAndSendTransaction({ 
          transaction, 
-         wallet: solanaWallet 
+         wallet: solanaWallet,
+         connection // 🚨 FORCE PRIVY TO USE OUR FRIENDLY RPC!
        });
 
        console.log("Payment successful! Tx Hash:", signature);
