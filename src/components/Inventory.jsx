@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { Wallet, Box, Clock, Zap, Users, X, Check, Activity, ShoppingBag, Shield, ShieldCheck, Cpu, Lock, Unlock} from 'lucide-react';
-import { usePrivy } from '@privy-io/react-auth'; // 🚨 IMPORT PRIVY HOOK
-// 🚨 WEB3 & PRIVY IMPORTS
-import { useWallets } from '@privy-io/react-auth';
-import { useSignAndSendTransaction } from '@privy-io/react-auth/solana';
+import { usePrivy } from '@privy-io/react-auth';
+import { useWallets, useSignAndSendTransaction, useCreateWallet } from '@privy-io/react-auth/solana';
 import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // Format ISO timestamp as relative time (e.g. "2 mins ago")
@@ -23,7 +21,7 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
    const { signAndSendTransaction } = useSignAndSendTransaction();
    
    // 🚨 ADDED: Bring in the Privy creator function
-   const { createWallet } = usePrivy(); 
+   const { createWallet } = useCreateWallet(); 
 
    const handlePurchaseLicense = async () => {
      setIsProcessing(true);
