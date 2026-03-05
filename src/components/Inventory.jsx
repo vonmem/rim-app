@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Wallet, Box, Clock, Zap, Users, X, Check, Activity, ShoppingBag, Shield, ShieldCheck, Cpu, Lock, Unlock} from 'lucide-react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { useSignAndSendTransaction } from '@privy-io/react-auth/solana';
+import { usePrivy } from '@privy-io/react-auth';
+import { useWallets, useSignAndSendTransaction } from '@privy-io/react-auth/solana';
 import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // Format ISO timestamp as relative time (e.g. "2 mins ago")
@@ -34,12 +34,12 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
          return;
        }
 
-       // 2. Find the Solana wallet Privy auto-created
-       const solanaWallet = wallets.find((w) => w.chainType === 'solana');
+       // 2. Grab the Solana wallet directly from the strict Solana hook
+       // (We check wallets[0] first because the solana hook ONLY returns solana wallets!)
+       const solanaWallet = wallets[0] || wallets.find((w) => w.chainType === 'solana');
 
        if (!solanaWallet) {
-         // Since the Dashboard handles creation now, we just tell them to wait a sec!
-         alert("Your Solana Network is still provisioning in the background. Please wait 10 seconds and click again!");
+         alert("Syncing with Solana node... Please click again in 2 seconds.");
          setIsProcessing(false);
          return;
        }
