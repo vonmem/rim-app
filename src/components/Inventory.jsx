@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Wallet, Box, Clock, Zap, Users, X, Check, Activity, ShoppingBag, Shield, ShieldCheck, Cpu, Lock, Unlock} from 'lucide-react';
 import { usePrivy } from '@privy-io/react-auth';
-import { useWallets, useSignAndSendTransaction, useCreateWallet } from '@privy-io/react-auth/solana';
+import { useSolanaWallets, useSignAndSendTransaction } from '@privy-io/react-auth/solana';
 import { Connection, PublicKey, SystemProgram, Transaction, LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 // Format ISO timestamp as relative time (e.g. "2 mins ago")
@@ -15,20 +15,32 @@ function formatTimeAgo(iso) {
 }
 
 // --- MAINNET ACTIVATION SUB-COMPONENT ---
+// 🚨 Notice the new hooks we are importing here!
+import { usePrivy } from '@privy-io/react-auth';
+import { useSolanaWallets } from '@privy-io/react-auth/solana';
+
 const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
    const [isProcessing, setIsProcessing] = useState(false);
-   const { wallets } = useWallets();
-   const { signAndSendTransaction } = useSignAndSendTransaction();
    
-   // 🚨 ADDED: Bring in the Privy creator function
-   const { createWallet } = useCreateWallet(); 
+   // 🚨 UPDATED: Using strict Solana hooks and auth checks
+   const { authenticated, login } = usePrivy();
+   const { wallets: solanaWallets, createWallet } = useSolanaWallets();
+   const { signAndSendTransaction } = useSignAndSendTransaction();
 
    const handlePurchaseLicense = async () => {
      setIsProcessing(true);
      try {
-       const solanaWallet = wallets.find((w) => w.chainType === 'solana');
-       
-       // 🚨 UPDATED: If no wallet is found, build one instantly!
+       // 1. If they aren't logged into Privy yet, force them to log in!
+       if (!authenticated) {
+         alert("Please connect your Secure Network first!");
+         login();
+         setIsProcessing(false);
+         return;
+       }
+
+       // 2. Grab their Solana wallet directly from the strict Solana hook
+       const solanaWallet = solanaWallets[0]; 
+
        if (!solanaWallet) {
          alert("Provisioning Solana Network... Please wait a few seconds and click again.");
          try {
@@ -40,14 +52,13 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
          return;
        }
 
-       // Connect to Solana Devnet for testing (change to 'mainnet-beta' for launch)
+       // 3. Setup the Transaction
        const connection = new Connection('https://api.devnet.solana.com');
        
-       // 🚨 REPLACE WITH YOUR ACTUAL PHANTOM WALLET ADDRESS 🚨
+       // 🚨 YOUR TREASURY WALLET
        const TREASURY_ADDRESS = new PublicKey("2y5gDC79ffAfHJiiBczyKQRoR2DP1VfNWoDgfTQ7Nnqo");
        const fromPubkey = new PublicKey(solanaWallet.address);
 
-       // Build the 0.03 SOL transfer
        const transaction = new Transaction().add(
          SystemProgram.transfer({
            fromPubkey: fromPubkey,
@@ -55,23 +66,21 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
            lamports: 0.03 * LAMPORTS_PER_SOL,
          })
        );
- 
+
        const { blockhash } = await connection.getLatestBlockhash();
        transaction.recentBlockhash = blockhash;
        transaction.feePayer = fromPubkey;
- 
-       // Trigger Privy Modal to sign
+
+       // 4. Trigger Privy Modal!
        const { signature } = await signAndSendTransaction({ 
          transaction, 
          wallet: solanaWallet 
        });
- 
+
        console.log("Payment successful! Tx Hash:", signature);
        alert("Mainnet Node Activated! Welcome to the Syndicate.");
-       
-       // Tell the parent component to update Supabase!
        if (onSuccess) onSuccess();
- 
+
      } catch (error) {
        console.error("Payment failed or cancelled:", error);
      } finally {
