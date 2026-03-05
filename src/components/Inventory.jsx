@@ -15,10 +15,6 @@ function formatTimeAgo(iso) {
 }
 
 // --- MAINNET ACTIVATION SUB-COMPONENT ---
-// 🚨 Notice the new hooks we are importing here!
-import { usePrivy } from '@privy-io/react-auth';
-import { useSolanaWallets } from '@privy-io/react-auth/solana';
-
 const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
    const [isProcessing, setIsProcessing] = useState(false);
    
