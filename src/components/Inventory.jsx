@@ -45,7 +45,7 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
        }
 
        // 3. Setup the Transaction
-       const connection = new Connection('https://api.devnet.solana.com');
+       const connection = new Connection('https://api.mainnet-beta.solana.com');
        
        // 🚨 YOUR TREASURY WALLET
        const TREASURY_ADDRESS = new PublicKey("2y5gDC79ffAfHJiiBczyKQRoR2DP1VfNWoDgfTQ7Nnqo");
@@ -150,7 +150,7 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
   const [isDeploying, setIsDeploying] = useState(false);
 
   // 🚨 PRIVY STATE EXTRACTOR
-  const { login, authenticated, user } = usePrivy();
+  const { login, logout, authenticated, user } = usePrivy();
   // Look for an external Phantom wallet first.
   // If none, hunt through their linked accounts for the Privy SOLANA embedded wallet!
   const walletAddress = 
@@ -201,15 +201,26 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
           </div>
           
           {authenticated && walletAddress ? (
-            <div 
-              onClick={() => {
-                navigator.clipboard.writeText(walletAddress);
-                alert("Solana Address Copied! 📋");
-              }}
-              className="bg-purple-900/40 border border-purple-500/50 px-3 py-1.5 rounded text-purple-300 font-mono text-[10px] shadow-[0_0_10px_rgba(168,85,247,0.2)] cursor-pointer hover:bg-purple-800/60 transition-colors flex items-center"
-            >
-              {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
-              <span className="ml-2 opacity-50">📋</span>
+            // 🚨 Wrap both the address and button in a flex row
+            <div className="flex items-center space-x-2">
+              <div 
+                onClick={() => {
+                  navigator.clipboard.writeText(walletAddress);
+                  alert("Solana Address Copied! 📋");
+                }}
+                className="bg-purple-900/40 border border-purple-500/50 px-3 py-1.5 rounded text-purple-300 font-mono text-[10px] shadow-[0_0_10px_rgba(168,85,247,0.2)] cursor-pointer hover:bg-purple-800/60 transition-colors flex items-center"
+              >
+                {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+                <span className="ml-2 opacity-50">📋</span>
+              </div>
+              
+              {/* 🚨 THE NEW LOGOUT BUTTON */}
+              <button 
+                onClick={logout}
+                className="bg-red-900/40 border border-red-500/50 px-2 py-1.5 rounded text-red-400 font-bold tracking-widest text-[10px] hover:bg-red-800/60 transition-colors shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+              >
+                DISCONNECT
+              </button>
             </div>
           ) : (
             <button 
