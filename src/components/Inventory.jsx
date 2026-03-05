@@ -21,24 +21,34 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
    const [isProcessing, setIsProcessing] = useState(false);
    const { wallets } = useWallets();
    const { signAndSendTransaction } = useSignAndSendTransaction();
- 
+   
+   // 🚨 ADDED: Bring in the Privy creator function
+   const { createWallet } = usePrivy(); 
+
    const handlePurchaseLicense = async () => {
      setIsProcessing(true);
      try {
        const solanaWallet = wallets.find((w) => w.chainType === 'solana');
+       
+       // 🚨 UPDATED: If no wallet is found, build one instantly!
        if (!solanaWallet) {
-         alert("Please connect your Secure Network in the Wallet tab first!");
+         alert("Provisioning Solana Network... Please wait a few seconds and click again.");
+         try {
+            await createWallet(); 
+         } catch (e) {
+            console.error("Failed to generate wallet", e);
+         }
          setIsProcessing(false);
          return;
        }
- 
+
        // Connect to Solana Devnet for testing (change to 'mainnet-beta' for launch)
        const connection = new Connection('https://api.devnet.solana.com');
        
        // 🚨 REPLACE WITH YOUR ACTUAL PHANTOM WALLET ADDRESS 🚨
        const TREASURY_ADDRESS = new PublicKey("2y5gDC79ffAfHJiiBczyKQRoR2DP1VfNWoDgfTQ7Nnqo");
        const fromPubkey = new PublicKey(solanaWallet.address);
- 
+
        // Build the 0.03 SOL transfer
        const transaction = new Transaction().add(
          SystemProgram.transfer({
@@ -192,8 +202,15 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
           </div>
           
           {authenticated && walletAddress ? (
-            <div className="bg-purple-900/40 border border-purple-500/50 px-3 py-1.5 rounded text-purple-300 font-mono text-[10px] shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+            <div 
+              onClick={() => {
+                navigator.clipboard.writeText(walletAddress);
+                alert("Solana Address Copied! 📋");
+              }}
+              className="bg-purple-900/40 border border-purple-500/50 px-3 py-1.5 rounded text-purple-300 font-mono text-[10px] shadow-[0_0_10px_rgba(168,85,247,0.2)] cursor-pointer hover:bg-purple-800/60 transition-colors flex items-center"
+            >
               {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
+              <span className="ml-2 opacity-50">📋</span>
             </div>
           ) : (
             <button 
