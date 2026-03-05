@@ -45,7 +45,7 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
        }
 
        // 3. Setup the Transaction
-       const connection = new Connection('https://rpc.ankr.com/solana');
+       const connection = new Connection('https://solana-rpc.publicnode.com');
        
        // 🚨 YOUR TREASURY WALLET
        const TREASURY_ADDRESS = new PublicKey("2y5gDC79ffAfHJiiBczyKQRoR2DP1VfNWoDgfTQ7Nnqo");
