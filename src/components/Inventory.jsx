@@ -73,11 +73,12 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
        alert("Mainnet Node Activated! Welcome to the Syndicate.");
        if (onSuccess) onSuccess();
 
-     } catch (error) {
-       console.error("Payment failed or cancelled:", error);
-     } finally {
-       setIsProcessing(false);
-     }
+      } catch (error) {
+         console.error("Payment failed or cancelled:", error);
+         alert(`Crash Report: ${error.message || JSON.stringify(error)}`); // 🚨 SHOW ME THE ERROR!
+       } finally {
+         setIsProcessing(false);
+       }
    };
  
    if (hasLicense) {
