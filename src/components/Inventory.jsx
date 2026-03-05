@@ -172,7 +172,7 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
   };
 
   return (
-    <div className="flex flex-col h-full w-full p-6 pt-20 overflow-y-auto bg-black text-white pb-24 relative">
+   <div className="flex flex-col h-full w-full overflow-y-auto pb-24 px-4 pt-4 bg-black text-white relative">
       
       <div className="flex justify-between items-center mb-6">
          <h2 className="text-xl font-bold flex items-center"><Wallet className="mr-2" /> ASSETS</h2>

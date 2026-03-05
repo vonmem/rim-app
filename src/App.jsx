@@ -508,9 +508,6 @@ function App() {
       setBalance(newBalance);
       balanceRef.current = newBalance;
 
-      // 🚨 FEED THE LEDGER HERE!
-      addTransaction('BUY', `-${item.costRP}`, item.name);
-
       // 4. Update the Backpack (JSON Object)
       const baseId = item.id.replace('_bulk', ''); 
       
@@ -755,7 +752,7 @@ function App() {
 
         // Hourly ledger: accumulate and flush every real hour
         hourlyEarnedRef.current += totalEarned;
-        if (now - lastHourFlushRef.current >= 60000) {
+        if (now - lastHourFlushRef.current >= 3600000) {
           const amount = hourlyEarnedRef.current.toFixed(2);
           if (Number(amount) > 0) {
             addTransactionRef.current('MINE', `+${amount}`, 'Hourly Yield');
