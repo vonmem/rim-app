@@ -190,20 +190,22 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
 
       {/* 🚨 THE NEW PRIVY WEB3 BRIDGE CARD */}
       <div className="bg-gray-900 border border-purple-500/30 rounded-lg p-4 mb-6 shadow-[0_0_20px_rgba(168,85,247,0.1)]">
-        <div className="flex justify-between items-center">
-          <div>
+        <div className="flex justify-between items-start">
+          
+          {/* LEFT SIDE: Text */}
+          <div className="flex flex-col mt-1">
             <h3 className="text-sm font-black text-white tracking-widest uppercase flex items-center">
               <span className={`w-2 h-2 rounded-full mr-2 ${authenticated ? 'bg-green-500 animate-pulse' : 'bg-purple-500 animate-pulse'}`}></span>
               {authenticated ? 'Secure Network' : 'Solana Network'}
             </h3>
             <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">
-              {authenticated ? 'Embedded Wallet Active' : 'Bridge Required for NFT Tiers'}
+              {authenticated ? 'Embedded Wallet Active' : 'Bridge Required'}
             </p>
           </div>
           
+          {/* RIGHT SIDE: Address & Button Stacked */}
           {authenticated && walletAddress ? (
-            // 🚨 Wrap both the address and button in a flex row
-            <div className="flex items-center space-x-2">
+            <div className="flex flex-col items-end space-y-2">
               <div 
                 onClick={() => {
                   navigator.clipboard.writeText(walletAddress);
@@ -214,19 +216,17 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
                 {walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}
                 <span className="ml-2 opacity-50">📋</span>
               </div>
-              
-              {/* 🚨 THE NEW LOGOUT BUTTON */}
               <button 
                 onClick={logout}
-                className="bg-red-900/40 border border-red-500/50 px-2 py-1.5 rounded text-red-400 font-bold tracking-widest text-[10px] hover:bg-red-800/60 transition-colors shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                className="text-red-400/80 hover:text-red-400 font-bold tracking-widest text-[9px] transition-colors uppercase"
               >
-                DISCONNECT
+                [ Disconnect ]
               </button>
             </div>
           ) : (
             <button 
               onClick={login}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] tracking-widest uppercase rounded transition-colors shadow-[0_0_15px_rgba(147,51,234,0.4)]"
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] tracking-widest uppercase rounded transition-colors shadow-[0_0_15px_rgba(147,51,234,0.4)] mt-1"
             >
               CONNECT WALLET
             </button>

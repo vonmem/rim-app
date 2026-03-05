@@ -18,6 +18,10 @@ createRoot(document.getElementById('root')).render(
         embeddedWallets: {
           createOnLogin: 'users-without-wallets',
         },
+        // 🚨 ADD THIS SO THE MODAL DOESN'T CRASH:
+        solana: {
+          rpcs: ['https://solana-rpc.publicnode.com']
+        },
       }}
     >
       <App />
