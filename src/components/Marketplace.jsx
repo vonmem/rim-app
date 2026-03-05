@@ -3,7 +3,7 @@ import { Shield, ShoppingBag, X, Check, ShieldCheck, Zap, Lock, Unlock, Cpu, Act
 
 // --- MAIN MARKETPLACE COMPONENT ---
 // 🚨 Added hasMainnetLicense and onActivateMainnet to the props
-const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, buyBlackMarketItem, hasMainnetLicense, onActivateMainnet }) => {
+const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, buyBlackMarketItem }) => {
   const [confirmItem, setConfirmItem] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
 
@@ -29,12 +29,6 @@ const Marketplace = ({ TIERS, CONSUMABLES, balance, userInventory, onBuyItem, bu
         <h2 className="text-xl font-black tracking-widest text-cyan-400">THE BLACK MARKET</h2>
         <p className="text-[10px] text-gray-500 uppercase tracking-wider">Unregulated Hardware & Contraband</p>
       </div>
-
-      {/* 🚨 SECTION 1: MAINNET ACTIVATION (WEB3) */}
-      <MainnetActivationCard 
-        hasLicense={hasMainnetLicense} 
-        onSuccess={onActivateMainnet} 
-      />
 
       {/* SECTION 2: CONTRABAND (Consumables & Boosters) */}
       <div className="mb-8">

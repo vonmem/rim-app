@@ -135,7 +135,7 @@ const MainnetActivationCard = ({ hasLicense, onSuccess }) => {
    );
  };
 
-const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABLES, deployConsumable, transactions = [] }) => {
+ const Inventory = ({ balance, currentTier, referralCount, consumables, CONSUMABLES, deployConsumable, transactions = [], hasMainnetLicense, onActivateMainnet }) => {
   // Modal State
   const [selectedItem, setSelectedItem] = useState(null);
   const [isDeploying, setIsDeploying] = useState(false);
