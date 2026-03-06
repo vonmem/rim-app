@@ -19,12 +19,9 @@ createRoot(document.getElementById('root')).render(
           createOnLogin: 'users-without-wallets',
         },
         // 🚨 ADD THIS SO THE PRIVY MODAL ITSELF DOESN'T CRASH:
-        solanaClusters: [
-          {
-           name: 'mainnet-beta',
-           rpcUrl: 'https://solana-rpc.publicnode.com',
-          }
-        ]
+        solana: {
+          rpcs: ['https://solana-rpc.publicnode.com']
+        }
       }}
     >
       <App />
