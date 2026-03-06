@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle, Crosshair } from 'lucide-react'
+import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle, Crosshair, Eye } from 'lucide-react'
 import * as h3 from 'h3-js';
 import { usePrivy } from '@privy-io/react-auth';
 
@@ -10,6 +10,7 @@ import StatsPanel from './components/StatsPanel'
 import MapTab from './components/MapTab';
 import MissionBoard from './components/MissionBoard';
 import Nomad from './components/Nomad';
+import Uplink from './components/Uplink';
 import Inventory from './components/Inventory';
 import Marketplace from './components/Marketplace';
 
@@ -112,8 +113,8 @@ function App() {
       } catch (_) {}
       return next;
     });
-    // NOMAD scan reward: credit balance and sync to Supabase
-    if (type === 'NOMAD' && amountStr.startsWith('+')) {
+    // NOMAD / UPLINK rewards: credit balance and sync to Supabase
+    if ((type === 'NOMAD' || type === 'UPLINK') && amountStr.startsWith('+')) {
       const reward = parseFloat(amountStr.replace(/[^0-9.-]/g, '')) || 0;
       if (reward > 0) {
         const newBalance = balanceRef.current + reward;
@@ -1119,6 +1120,8 @@ function App() {
            <MissionBoard setActiveMode={setActiveMode} setTab={setTab} />
         ) : tab === 'NOMAD' ? (
            <Nomad addTransaction={addTransaction} />
+        ) : tab === 'UPLINK' ? (
+           <Uplink addTransaction={addTransaction} />
         ) : tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
@@ -1308,7 +1311,7 @@ function App() {
       </div>
 
       {/* FOOTER */}
-      <div className="grid grid-cols-7 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
+      <div className="grid grid-cols-8 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
         <button onClick={() => setTab('TERMINAL')} className={`p-2 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
           <Terminal size={16} /><span className="text-[7px] mt-0.5 font-bold">GRID</span>
         </button>
@@ -1320,6 +1323,9 @@ function App() {
         </button>
         <button onClick={() => setTab('NOMAD')} className={`p-2 flex flex-col items-center ${tab === 'NOMAD' ? 'text-white' : 'text-gray-600'}`}>
           <Signal size={16} /><span className="text-[7px] mt-0.5 font-bold">NOMAD</span>
+        </button>
+        <button onClick={() => setTab('UPLINK')} className={`p-2 flex flex-col items-center ${tab === 'UPLINK' ? 'text-white' : 'text-gray-600'}`}>
+          <Eye size={16} /><span className="text-[7px] mt-0.5 font-bold">UPLINK</span>
         </button>
         <button onClick={() => setTab('WALLET')} className={`p-2 flex flex-col items-center ${tab === 'WALLET' ? 'text-white' : 'text-gray-600'}`}>
           <Wallet size={16} /><span className="text-[7px] mt-0.5 font-bold">WALLET</span>
