@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Signal, Wallet, AlertTriangle, Crosshair, Eye } from 'lucide-react'
+import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Wallet, AlertTriangle, Crosshair } from 'lucide-react'
 import * as h3 from 'h3-js';
 import { usePrivy } from '@privy-io/react-auth';
 
@@ -1119,9 +1119,9 @@ function App() {
         {tab === 'MISSIONS' ? (
            <MissionBoard setActiveMode={setActiveMode} setTab={setTab} />
         ) : tab === 'NOMAD' ? (
-           <Nomad addTransaction={addTransaction} />
+           <Nomad addTransaction={addTransaction} setTab={setTab} />
         ) : tab === 'UPLINK' ? (
-           <Uplink addTransaction={addTransaction} />
+           <Uplink addTransaction={addTransaction} setTab={setTab} />
         ) : tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
@@ -1311,30 +1311,24 @@ function App() {
       </div>
 
       {/* FOOTER */}
-      <div className="grid grid-cols-8 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
-        <button onClick={() => setTab('TERMINAL')} className={`p-2 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
-          <Terminal size={16} /><span className="text-[7px] mt-0.5 font-bold">GRID</span>
+      <div className="grid grid-cols-6 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
+        <button onClick={() => setTab('TERMINAL')} className={`p-3 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
+          <Terminal size={18} /><span className="text-[8px] mt-1 font-bold">GRID</span>
         </button>
-        <button onClick={() => setTab('MISSIONS')} className={`p-2 flex flex-col items-center ${tab === 'MISSIONS' ? 'text-white' : 'text-gray-600'}`}>
-          <Crosshair size={16} /><span className="text-[7px] mt-0.5 font-bold">MISSIONS</span>
+        <button onClick={() => setTab('MISSIONS')} className={`p-3 flex flex-col items-center ${tab === 'MISSIONS' ? 'text-white' : 'text-gray-600'}`}>
+          <Crosshair size={18} /><span className="text-[8px] mt-1 font-bold">MISSIONS</span>
         </button>
-        <button onClick={() => setTab('MAP')} className={`p-2 flex flex-col items-center ${tab === 'MAP' ? 'text-white' : 'text-gray-600'}`}>
-          <MapPin size={16} /><span className="text-[7px] mt-0.5 font-bold">MAP</span>
+        <button onClick={() => setTab('MAP')} className={`p-3 flex flex-col items-center ${tab === 'MAP' ? 'text-white' : 'text-gray-600'}`}>
+          <MapPin size={18} /><span className="text-[8px] mt-1 font-bold">MAP</span>
         </button>
-        <button onClick={() => setTab('NOMAD')} className={`p-2 flex flex-col items-center ${tab === 'NOMAD' ? 'text-white' : 'text-gray-600'}`}>
-          <Signal size={16} /><span className="text-[7px] mt-0.5 font-bold">NOMAD</span>
+        <button onClick={() => setTab('WALLET')} className={`p-3 flex flex-col items-center ${tab === 'WALLET' ? 'text-white' : 'text-gray-600'}`}>
+          <Wallet size={18} /><span className="text-[8px] mt-1 font-bold">WALLET</span>
         </button>
-        <button onClick={() => setTab('UPLINK')} className={`p-2 flex flex-col items-center ${tab === 'UPLINK' ? 'text-white' : 'text-gray-600'}`}>
-          <Eye size={16} /><span className="text-[7px] mt-0.5 font-bold">UPLINK</span>
+        <button onClick={() => setTab('SQUAD')} className={`p-3 flex flex-col items-center ${tab === 'SQUAD' ? 'text-white' : 'text-gray-600'}`}>
+          <Users size={18} /><span className="text-[8px] mt-1 font-bold">SQUAD</span>
         </button>
-        <button onClick={() => setTab('WALLET')} className={`p-2 flex flex-col items-center ${tab === 'WALLET' ? 'text-white' : 'text-gray-600'}`}>
-          <Wallet size={16} /><span className="text-[7px] mt-0.5 font-bold">WALLET</span>
-        </button>
-        <button onClick={() => setTab('SQUAD')} className={`p-2 flex flex-col items-center ${tab === 'SQUAD' ? 'text-white' : 'text-gray-600'}`}>
-          <Users size={16} /><span className="text-[7px] mt-0.5 font-bold">SQUAD</span>
-        </button>
-        <button onClick={() => setTab('MARKET')} className={`p-2 flex flex-col items-center ${tab === 'MARKET' ? 'text-white' : 'text-gray-600'}`}>
-          <ShoppingCart size={16} /><span className="text-[7px] mt-0.5 font-bold">MARKET</span>
+        <button onClick={() => setTab('MARKET')} className={`p-3 flex flex-col items-center ${tab === 'MARKET' ? 'text-white' : 'text-gray-600'}`}>
+          <ShoppingCart size={18} /><span className="text-[8px] mt-1 font-bold">MARKET</span>
         </button>
       </div>
 

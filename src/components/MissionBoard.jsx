@@ -67,11 +67,17 @@ const accentGlow = {
  */
 function MissionBoard({ setActiveMode, setTab }) {
   const handleSelect = (task) => {
+    if (task.id === 'NOMAD' || task.id === 'UPLINK') {
+      setTab(task.id);
+      return;
+    }
     if (task.disabled) return;
     setActiveMode(task.id);
     if (task.id === 'PASSIVE') setTab('TERMINAL');
     if (task.id === 'CARTOGRAPHER') setTab('MAP');
   };
+
+  const isCardClickable = (task) => task.id === 'NOMAD' || task.id === 'UPLINK' || !task.disabled;
 
   return (
     <div className="flex flex-col h-full w-full bg-black text-white overflow-y-auto pb-24 font-mono">
@@ -92,16 +98,17 @@ function MissionBoard({ setActiveMode, setTab }) {
             const borderGlow = accentStyles[task.accent];
             const bgGlow = accentGlow[task.accent];
 
+            const clickable = isCardClickable(task);
             return (
               <li key={task.id}>
                 <button
                   type="button"
                   onClick={() => handleSelect(task)}
-                  disabled={isDisabled}
+                  disabled={!clickable}
                   className={`w-full text-left rounded-lg border p-4 transition-all duration-300 ${bgGlow} ${
-                    isDisabled
-                      ? 'opacity-60 cursor-not-allowed border-gray-700'
-                      : `border ${borderGlow} hover:shadow-[0_0_24px_rgba(34,211,238,0.25)] active:scale-[0.99]`
+                    clickable
+                      ? `border ${borderGlow} hover:shadow-[0_0_24px_rgba(34,211,238,0.25)] active:scale-[0.99] cursor-pointer`
+                      : 'opacity-60 cursor-not-allowed border-gray-700'
                   }`}
                 >
                   <div className="flex items-start gap-4">

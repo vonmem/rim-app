@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Wifi, Radio } from 'lucide-react';
+import { Wifi, Radio, ArrowLeft } from 'lucide-react';
 
 const COOLDOWN_KEY = 'sonar_nomad_cooldown';
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
@@ -35,7 +35,7 @@ function classifyNode(pingMs) {
   return { label: 'Fringe Connection', reward: 25 };
 }
 
-function Nomad({ addTransaction }) {
+function Nomad({ addTransaction, setTab }) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState('');
   const [lastPingTime, setLastPingTime] = useState(() => {
@@ -127,6 +127,16 @@ function Nomad({ addTransaction }) {
   return (
     <div className="flex flex-col min-h-full w-full bg-black text-white overflow-y-auto pb-24">
       <div className="p-6 pt-20">
+        {typeof setTab === 'function' && (
+          <button
+            type="button"
+            onClick={() => setTab('MISSIONS')}
+            className="flex items-center gap-2 mb-6 text-gray-400 hover:text-white text-[10px] font-bold tracking-widest uppercase transition-colors"
+          >
+            <ArrowLeft size={14} />
+            BACK TO MISSIONS
+          </button>
+        )}
         {/* Header */}
         <div className="flex items-center gap-3 mb-10">
           <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.2)]">

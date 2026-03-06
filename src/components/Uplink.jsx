@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, Eye, Lock, X } from 'lucide-react';
+import { Camera, Eye, Lock, X, ArrowLeft } from 'lucide-react';
 
 const CORPORATE_BOUNTIES = [
   { id: 'urban-transit', name: 'Urban Transit Node', baseRP: 200, multiplier: 3 },
@@ -16,7 +16,7 @@ const AI_ANALYSIS_MESSAGES = [
 
 const UPLINK_COMPLETED_KEY = 'sonar_uplink_completed';
 
-function Uplink({ addTransaction }) {
+function Uplink({ addTransaction, setTab }) {
   const [hasTier3License, setHasTier3License] = useState(false);
   const [completedBounties, setCompletedBounties] = useState(() => {
     try {
@@ -106,9 +106,21 @@ function Uplink({ addTransaction }) {
     setAnalysisMessage('');
   };
 
+  const backButton = typeof setTab === 'function' && (
+    <button
+      type="button"
+      onClick={() => setTab('MISSIONS')}
+      className="flex items-center gap-2 mb-6 text-gray-400 hover:text-white text-[10px] font-bold tracking-widest uppercase transition-colors"
+    >
+      <ArrowLeft size={14} />
+      BACK TO MISSIONS
+    </button>
+  );
+
   if (!hasTier3License) {
     return (
       <div className="relative flex flex-col min-h-full w-full bg-black text-white overflow-hidden">
+        <div className="absolute top-6 left-6 z-20">{backButton}</div>
         {/* Blurred bounty board tease */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="p-6 pt-20 opacity-60 blur-md pointer-events-none select-none">
@@ -157,6 +169,7 @@ function Uplink({ addTransaction }) {
   return (
     <div className="flex flex-col min-h-full w-full bg-black text-white overflow-y-auto pb-24">
       <div className="p-6 pt-20">
+        {backButton}
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
           <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.2)]">
