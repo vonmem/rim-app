@@ -1,36 +1,79 @@
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Polygon, useMap, CircleMarker } from 'react-leaflet';
+import { useEffect, useState, useRef } from 'react';
+import { MapContainer, TileLayer, Polygon, Polyline, useMap, CircleMarker } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as h3 from 'h3-js';
 import { MapPin, Wifi, Crosshair, AlertTriangle } from 'lucide-react';
 
+const ROUTE_STORAGE_KEY = 'sonar_current_route';
+const MAX_ROUTE_POINTS = 500;
+const MIN_DISTANCE_M = 2; // Only add point if moved at least 2m (reduces jitter & array size)
+
+function haversineMeters(a, b) {
+  const R = 6_371_000;
+  const toRad = (x) => (x * Math.PI) / 180;
+  const dLat = toRad(b[0] - a[0]);
+  const dLng = toRad(b[1] - a[1]);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(x));
+}
+
 // Helper to smooth-pan the map when the user moves
 function ChangeView({ center }) {
   const map = useMap();
-  map.setView(center, 15); 
+  map.setView(center, 15);
   return null;
 }
 
-const MapTab = ({ 
-  locationData, 
+const MapTab = ({
+  locationData,
   cityNodeCount,
   isActiveGPSTracking,
   startActiveGPS,
   stopActiveGPS,
   activeGPSDistance,
   activeGPSError,
-  activeGPSLocation // 🚨 NEW LIVE PROP
+  activeGPSLocation,
 }) => {
   const [hexBoundary, setHexBoundary] = useState([]);
   const [neighborHexes, setNeighborHexes] = useState([]);
   const [liveSector, setLiveSector] = useState(locationData?.h3Index || 'SCANNING...');
-  
-  // 🚨 DYNAMIC CENTER: Use active GPS if tracking, otherwise fallback to static location
+
+  // Route trail: [[lat, lng], ...] — init from localStorage, append on each valid position
+  const [routeHistory, setRouteHistory] = useState(() => {
+    try {
+      const raw = localStorage.getItem(ROUTE_STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+  const lastRoutePointRef = useRef(null);
+
+  // Persist route to localStorage whenever it changes (debounce not required; slice keeps size bounded)
+  useEffect(() => {
+    if (routeHistory.length === 0) return;
+    try {
+      localStorage.setItem(ROUTE_STORAGE_KEY, JSON.stringify(routeHistory));
+    } catch (_) {}
+  }, [routeHistory]);
+
+  // On each new position while tracking, append to routeHistory (with minimum distance filter)
+  useEffect(() => {
+    if (!isActiveGPSTracking || !activeGPSLocation) return;
+    const pt = [activeGPSLocation.lat, activeGPSLocation.lng];
+    const last = lastRoutePointRef.current;
+    if (last !== null && haversineMeters(last, pt) < MIN_DISTANCE_M) return;
+    lastRoutePointRef.current = pt;
+    setRouteHistory((prev) => [...prev, pt].slice(-MAX_ROUTE_POINTS));
+  }, [isActiveGPSTracking, activeGPSLocation?.lat, activeGPSLocation?.lng]);
+
+  // Dynamic center
   const currentLat = isActiveGPSTracking && activeGPSLocation ? activeGPSLocation.lat : (locationData?.lat || 1.3521);
   const currentLng = isActiveGPSTracking && activeGPSLocation ? activeGPSLocation.lng : (locationData?.lng || 103.8198);
   const center = [currentLat, currentLng];
 
-  // 🚨 DYNAMIC HEXAGONS: Redraw the grid when they physically move!
+  // DYNAMIC HEXAGONS
   useEffect(() => {
     let lat = locationData?.lat;
     let lng = locationData?.lng;
@@ -97,7 +140,29 @@ const MapTab = ({
           />
         )}
 
-        {/* 🚨 THE LIVE RADAR DOT */}
+        {/* ROUTE TRAIL: glowing polyline from persisted routeHistory */}
+        {routeHistory.length > 1 && (
+          <>
+            <Polyline
+              positions={routeHistory}
+              pathOptions={{
+                color: '#a855f7',
+                weight: 8,
+                opacity: 0.35,
+              }}
+            />
+            <Polyline
+              positions={routeHistory}
+              pathOptions={{
+                color: '#22c55e',
+                weight: 5,
+                opacity: 0.9,
+              }}
+            />
+          </>
+        )}
+
+        {/* LIVE RADAR DOT */}
         <CircleMarker 
           center={center} 
           radius={6} 
