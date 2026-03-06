@@ -38,12 +38,12 @@ const TASKS = [
     id: 'NOMAD',
     title: 'Nomad [Connectivity]',
     description: 'Ping local networks to map global digital nomad infrastructure.',
-    reward: '—',
-    status: 'IN_DEVELOPMENT',
-    statusLabel: 'OFFLINE',
+    reward: 'Up to 100 RP / Ping',
+    status: 'ONLINE',
+    statusLabel: 'ONLINE',
     disabled: true,
     Icon: Signal,
-    accent: 'gray',
+    accent: 'green',
   },
 ];
 
@@ -128,8 +128,8 @@ function MissionBoard({ setActiveMode, setTab }) {
                           className={`text-[9px] font-black tracking-widest px-2 py-0.5 rounded ${
                             task.status === 'ACTIVE'
                               ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40'
-                              : task.status === 'AVAILABLE'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                              : task.status === 'AVAILABLE' || task.status === 'ONLINE'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse'
                               : 'bg-gray-800 text-gray-500 border border-gray-700'
                           }`}
                         >

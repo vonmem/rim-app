@@ -852,6 +852,8 @@ function App() {
     setBalance(newBalance);
     balanceRef.current = newBalance;
 
+    addTransaction('MAPPING', `+${ACTIVE_MAP_BOUNTY_RP}`, 'Sector Mapped (50m)');
+
     await supabase.from('users').update({ balance: balanceRef.current }).eq('id', safeUserId);
 
     // 4. 📡 MONETIZATION: Save the GPS footprint for B2B sales
@@ -1207,7 +1209,7 @@ function App() {
                  </button>
               </div>
            </div>
-        ) : (
+        ) : tab === 'TERMINAL' ? (
            <>
               {/* UNIVERSAL STABILITY BAR (Now shows for all tiers!) */}
               <div className="absolute top-4 w-full px-12 z-20">
@@ -1307,7 +1309,7 @@ function App() {
                  referralRate={activeReferrals * REFERRAL_RATE_PER_TICK}
               />
            </>
-        )}
+        ) : null}
       </div>
 
       {/* FOOTER */}
