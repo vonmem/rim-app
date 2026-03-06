@@ -20,15 +20,19 @@ function haversineMeters(a, b) {
 }
 
 const DEFAULT_THRESHOLD_M = 50;
+/** Max allowed speed for mapping: 20 km/h ≈ 5.5 m/s (anti-cheat: no vehicles) */
+const SPEED_LIMIT_MS = 5.5;
+const CONSECUTIVE_PINGS_TO_CLEAR_SPEEDING = 3;
 
 /**
  * useActiveGPS – Tracks user location in the Mini App with a 50m threshold.
  * Uses navigator.geolocation.watchPosition. No native/background; safe for Telegram WebView.
+ * Vehicle speed cap: rewards pause when speed > 5.5 m/s (20 km/h).
  *
  * @param {Object} options
  * @param {(distance: number, coords: { lat: number, lng: number }) => void} [options.onSignificantLocationChange] – Fired when user moves >= threshold.
  * @param {number} [options.thresholdMeters=50] – Min distance (m) before state update and callback.
- * @returns {{ currentLocation, distanceTraveled, isTracking, startTracking, stopTracking, permissionState, permissionError }}
+ * @returns {{ currentLocation, distanceTraveled, isTracking, isSpeeding, startTracking, stopTracking, permissionState, permissionError }}
  */
 export function useActiveGPS(options = {}) {
   const {
@@ -39,6 +43,7 @@ export function useActiveGPS(options = {}) {
   const [currentLocation, setCurrentLocation] = useState(null);
   const [distanceTraveled, setDistanceTraveled] = useState(0);
   const [isTracking, setIsTracking] = useState(false);
+  const [isSpeeding, setIsSpeeding] = useState(false);
   const [permissionState, setPermissionState] = useState('prompt'); // 'prompt' | 'granted' | 'denied'
   const [permissionError, setPermissionError] = useState(null); // User-facing message for Telegram/WebView quirks
 
@@ -46,6 +51,9 @@ export function useActiveGPS(options = {}) {
   const lastRecordedRef = useRef(null);
   const totalDistanceRef = useRef(0);
   const callbackRef = useRef(onSignificantLocationChange);
+  const lastPingTimeRef = useRef(Date.now());
+  const lastCoordsRef = useRef(null);
+  const consecutiveNonSpeedingRef = useRef(0);
 
   callbackRef.current = onSignificantLocationChange;
 
@@ -57,12 +65,47 @@ export function useActiveGPS(options = {}) {
     }
 
     setPermissionError(null);
+    lastPingTimeRef.current = Date.now();
+    lastCoordsRef.current = null;
+    consecutiveNonSpeedingRef.current = 0;
 
     const onPosition = (position) => {
-      const { latitude, longitude } = position.coords;
+      const now = Date.now();
+      const { latitude, longitude, speed: coordsSpeed } = position.coords;
       const coords = { lat: latitude, lng: longitude };
 
       setCurrentLocation(coords);
+
+      const lastCoords = lastCoordsRef.current;
+      lastCoordsRef.current = coords;
+      const prevTime = lastPingTimeRef.current;
+      lastPingTimeRef.current = now;
+
+      let currentSpeedMs = null;
+      if (lastCoords !== null && prevTime > 0) {
+        const elapsedSec = (now - prevTime) / 1000;
+        if (elapsedSec >= 0.5) {
+          const distance = haversineMeters(lastCoords, coords);
+          currentSpeedMs = distance / elapsedSec;
+        }
+      }
+      if (currentSpeedMs == null && typeof coordsSpeed === 'number' && coordsSpeed >= 0) {
+        currentSpeedMs = coordsSpeed;
+      }
+
+      const overLimit = currentSpeedMs != null && currentSpeedMs > SPEED_LIMIT_MS;
+
+      if (overLimit) {
+        consecutiveNonSpeedingRef.current = 0;
+        setIsSpeeding(true);
+        lastRecordedRef.current = coords;
+        return;
+      }
+
+      consecutiveNonSpeedingRef.current += 1;
+      if (consecutiveNonSpeedingRef.current >= CONSECUTIVE_PINGS_TO_CLEAR_SPEEDING) {
+        setIsSpeeding(false);
+      }
 
       const last = lastRecordedRef.current;
       if (last === null) {
@@ -133,6 +176,7 @@ export function useActiveGPS(options = {}) {
     currentLocation,
     distanceTraveled,
     isTracking,
+    isSpeeding,
     startTracking,
     stopTracking,
     permissionState,

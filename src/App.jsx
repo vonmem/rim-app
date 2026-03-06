@@ -880,6 +880,7 @@ function App() {
     currentLocation: activeGPSLocation,
     distanceTraveled: activeGPSDistance,
     isTracking: isActiveGPSTracking,
+    isSpeeding: activeGPSIsSpeeding,
     startTracking: startActiveGPS,
     stopTracking: stopActiveGPS,
     permissionState: activeGPSPermission,
@@ -1133,7 +1134,8 @@ function App() {
               stopActiveGPS={stopActiveGPS}
               activeGPSDistance={activeGPSDistance}
               activeGPSError={activeGPSError}
-              activeGPSLocation={activeGPSLocation} 
+              activeGPSLocation={activeGPSLocation}
+              activeGPSIsSpeeding={activeGPSIsSpeeding}
            />
         ) : tab === 'WALLET' ? (
            <Inventory 

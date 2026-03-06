@@ -33,6 +33,7 @@ const MapTab = ({
   activeGPSDistance,
   activeGPSError,
   activeGPSLocation,
+  activeGPSIsSpeeding = false,
 }) => {
   const [hexBoundary, setHexBoundary] = useState([]);
   const [neighborHexes, setNeighborHexes] = useState([]);
@@ -58,15 +59,15 @@ const MapTab = ({
     } catch (_) {}
   }, [routeHistory]);
 
-  // On each new position while tracking, append to routeHistory (with minimum distance filter)
+  // On each new position while tracking, append to routeHistory (with minimum distance filter; skip when speeding)
   useEffect(() => {
-    if (!isActiveGPSTracking || !activeGPSLocation) return;
+    if (!isActiveGPSTracking || !activeGPSLocation || activeGPSIsSpeeding) return;
     const pt = [activeGPSLocation.lat, activeGPSLocation.lng];
     const last = lastRoutePointRef.current;
     if (last !== null && haversineMeters(last, pt) < MIN_DISTANCE_M) return;
     lastRoutePointRef.current = pt;
     setRouteHistory((prev) => [...prev, pt].slice(-MAX_ROUTE_POINTS));
-  }, [isActiveGPSTracking, activeGPSLocation?.lat, activeGPSLocation?.lng]);
+  }, [isActiveGPSTracking, activeGPSLocation?.lat, activeGPSLocation?.lng, activeGPSIsSpeeding]);
 
   // Dynamic center
   const currentLat = isActiveGPSTracking && activeGPSLocation ? activeGPSLocation.lat : (locationData?.lat || 1.3521);
@@ -112,6 +113,12 @@ const MapTab = ({
 
   return (
     <div className="absolute inset-0 z-0 bg-black">
+      {activeGPSIsSpeeding && isActiveGPSTracking && (
+        <div className="absolute top-4 left-4 right-4 z-[500] rounded-lg border-2 border-red-500 bg-red-900/80 px-4 py-3 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.3)] animate-pulse">
+          <p className="text-xs font-black tracking-widest uppercase">⚠️ VEHICLE DETECTED. MAPPING PAUSED.</p>
+          <p className="text-[10px] text-red-300/90 mt-1 tracking-wider">Sonar Rim requires ground-level pedestrian data.</p>
+        </div>
+      )}
       <MapContainer 
         center={center} 
         zoom={15} 
