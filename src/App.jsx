@@ -9,6 +9,7 @@ import MiningRig from './components/MiningRig'
 import StatsPanel from './components/StatsPanel'
 import MapTab from './components/MapTab';
 import MissionBoard from './components/MissionBoard';
+import Nomad from './components/Nomad';
 import Inventory from './components/Inventory';
 import Marketplace from './components/Marketplace';
 
@@ -103,14 +104,28 @@ function App() {
   const addTransaction = useCallback((type, amount, label) => {
     const id = Date.now();
     const timestamp = new Date().toISOString();
+    const amountStr = String(amount);
     setTransactions((prev) => {
-      const next = [{ id, type, amount: String(amount), label, timestamp }, ...prev].slice(0, 20);
+      const next = [{ id, type, amount: amountStr, label, timestamp }, ...prev].slice(0, 20);
       try {
         localStorage.setItem('sonar_ledger', JSON.stringify(next));
       } catch (_) {}
       return next;
     });
-  }, []);
+    // NOMAD scan reward: credit balance and sync to Supabase
+    if (type === 'NOMAD' && amountStr.startsWith('+')) {
+      const reward = parseFloat(amountStr.replace(/[^0-9.-]/g, '')) || 0;
+      if (reward > 0) {
+        const newBalance = balanceRef.current + reward;
+        setBalance(newBalance);
+        balanceRef.current = newBalance;
+        const safeUserId = user?.id || window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        if (safeUserId) {
+          supabase.from('users').update({ balance: newBalance }).eq('id', safeUserId).then(() => {});
+        }
+      }
+    }
+  }, [user]);
 
   const addTransactionRef = useRef(addTransaction);
   addTransactionRef.current = addTransaction;
@@ -1102,6 +1117,8 @@ function App() {
 
         {tab === 'MISSIONS' ? (
            <MissionBoard setActiveMode={setActiveMode} setTab={setTab} />
+        ) : tab === 'NOMAD' ? (
+           <Nomad addTransaction={addTransaction} />
         ) : tab === 'MAP' ? (
            <MapTab 
               locationData={locationData} 
@@ -1291,24 +1308,27 @@ function App() {
       </div>
 
       {/* FOOTER */}
-      <div className="grid grid-cols-6 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
-        <button onClick={() => setTab('TERMINAL')} className={`p-3 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
-          <Terminal size={18} /><span className="text-[8px] mt-1 font-bold">GRID</span>
+      <div className="grid grid-cols-7 border-t border-gray-900 bg-black pb-8 z-50 bg-black">
+        <button onClick={() => setTab('TERMINAL')} className={`p-2 flex flex-col items-center ${tab === 'TERMINAL' ? 'text-white' : 'text-gray-600'}`}>
+          <Terminal size={16} /><span className="text-[7px] mt-0.5 font-bold">GRID</span>
         </button>
-        <button onClick={() => setTab('MISSIONS')} className={`p-3 flex flex-col items-center ${tab === 'MISSIONS' ? 'text-white' : 'text-gray-600'}`}>
-          <Crosshair size={18} /><span className="text-[8px] mt-1 font-bold">MISSIONS</span>
+        <button onClick={() => setTab('MISSIONS')} className={`p-2 flex flex-col items-center ${tab === 'MISSIONS' ? 'text-white' : 'text-gray-600'}`}>
+          <Crosshair size={16} /><span className="text-[7px] mt-0.5 font-bold">MISSIONS</span>
         </button>
-        <button onClick={() => setTab('MAP')} className={`p-3 flex flex-col items-center ${tab === 'MAP' ? 'text-white' : 'text-gray-600'}`}>
-          <MapPin size={18} /><span className="text-[8px] mt-1 font-bold">MAP</span>
+        <button onClick={() => setTab('MAP')} className={`p-2 flex flex-col items-center ${tab === 'MAP' ? 'text-white' : 'text-gray-600'}`}>
+          <MapPin size={16} /><span className="text-[7px] mt-0.5 font-bold">MAP</span>
         </button>
-        <button onClick={() => setTab('WALLET')} className={`p-3 flex flex-col items-center ${tab === 'WALLET' ? 'text-white' : 'text-gray-600'}`}>
-          <Wallet size={18} /><span className="text-[8px] mt-1 font-bold">WALLET</span>
+        <button onClick={() => setTab('NOMAD')} className={`p-2 flex flex-col items-center ${tab === 'NOMAD' ? 'text-white' : 'text-gray-600'}`}>
+          <Signal size={16} /><span className="text-[7px] mt-0.5 font-bold">NOMAD</span>
         </button>
-        <button onClick={() => setTab('SQUAD')} className={`p-3 flex flex-col items-center ${tab === 'SQUAD' ? 'text-white' : 'text-gray-600'}`}>
-          <Users size={18} /><span className="text-[8px] mt-1 font-bold">SQUAD</span>
+        <button onClick={() => setTab('WALLET')} className={`p-2 flex flex-col items-center ${tab === 'WALLET' ? 'text-white' : 'text-gray-600'}`}>
+          <Wallet size={16} /><span className="text-[7px] mt-0.5 font-bold">WALLET</span>
         </button>
-        <button onClick={() => setTab('MARKET')} className={`p-3 flex flex-col items-center ${tab === 'MARKET' ? 'text-white' : 'text-gray-600'}`}>
-          <ShoppingCart size={18} /><span className="text-[8px] mt-1 font-bold">BLACK MARKET</span>
+        <button onClick={() => setTab('SQUAD')} className={`p-2 flex flex-col items-center ${tab === 'SQUAD' ? 'text-white' : 'text-gray-600'}`}>
+          <Users size={16} /><span className="text-[7px] mt-0.5 font-bold">SQUAD</span>
+        </button>
+        <button onClick={() => setTab('MARKET')} className={`p-2 flex flex-col items-center ${tab === 'MARKET' ? 'text-white' : 'text-gray-600'}`}>
+          <ShoppingCart size={16} /><span className="text-[7px] mt-0.5 font-bold">MARKET</span>
         </button>
       </div>
 
