@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Wallet, AlertTriangle, Crosshair } from 'lucide-react'
+import { Terminal, Users, ShoppingCart, Zap, DollarSign, MapPin, Wallet, AlertTriangle, Crosshair, Signal } from 'lucide-react'
 import * as h3 from 'h3-js';
 import { usePrivy } from '@privy-io/react-auth';
 
