@@ -113,8 +113,8 @@ function App() {
       } catch (_) {}
       return next;
     });
-    // NOMAD / UPLINK rewards: credit balance and sync to Supabase
-    if ((type === 'NOMAD' || type === 'UPLINK') && amountStr.startsWith('+')) {
+    // NOMAD / UPLINK / CACHE rewards: credit balance and sync to Supabase
+    if ((type === 'NOMAD' || type === 'UPLINK' || type === 'CACHE') && amountStr.startsWith('+')) {
       const reward = parseFloat(amountStr.replace(/[^0-9.-]/g, '')) || 0;
       if (reward > 0) {
         const newBalance = balanceRef.current + reward;
@@ -1136,6 +1136,7 @@ function App() {
               activeGPSError={activeGPSError}
               activeGPSLocation={activeGPSLocation}
               activeGPSIsSpeeding={activeGPSIsSpeeding}
+              addTransaction={addTransaction}
            />
         ) : tab === 'WALLET' ? (
            <Inventory 
@@ -1211,23 +1212,29 @@ function App() {
                  </button>
               </div>
            </div>
-        ) : tab === 'TERMINAL' ? (
+        ) : (tab === 'TERMINAL' || tab === 'RIG') ? (
+           <>
+              {(!currentTier || !currentTier.name) ? (
+                <div className="flex flex-col items-center justify-center min-h-[50vh] px-6 bg-red-950/80 border-2 border-red-500 rounded-xl text-red-400 text-center mx-4">
+                  <p className="text-sm font-black tracking-widest uppercase">CONNECTION ERROR</p>
+                  <p className="text-[10px] mt-2 text-red-300/80">Rig data unavailable. Return to Grid or refresh.</p>
+                </div>
+              ) : (
            <>
               {/* UNIVERSAL STABILITY BAR (Now shows for all tiers!) */}
               <div className="absolute top-4 w-full px-12 z-20">
                  <div className="flex justify-between text-[8px] font-bold tracking-widest mb-1">
                     <span className={isOverheated ? 'text-red-500 animate-pulse' : 'text-gray-500'}>
-                       {isOverheated ? currentTier.narrative : `${currentTier.name} STABILITY`}
+                       {isOverheated ? (currentTier.narrative || 'OVERHEATED') : `${currentTier.name || 'RIG'} STABILITY`}
                     </span>
                     <span className="text-gray-500">
-                       {/* Calculate percentage based on dynamic limits */}
-                       {Math.floor((godModeElapsed / (currentTier.limitHours * 3600)) * 100)}%
+                       {Math.floor((godModeElapsed / ((currentTier.limitHours || 12) * 3600)) * 100)}%
                     </span>
                  </div>
                  <div className="w-full h-1 bg-gray-900 rounded-full">
                     <div 
                        className={`h-full rounded-full transition-all duration-1000 ${isOverheated ? 'bg-red-500' : 'bg-cyan-400'}`} 
-                       style={{ width: `${Math.min(100, (godModeElapsed / (currentTier.limitHours * 3600)) * 100)}%` }}
+                       style={{ width: `${Math.min(100, (godModeElapsed / ((currentTier.limitHours || 12) * 3600)) * 100)}%` }}
                     ></div>
                  </div>
               </div>
@@ -1241,9 +1248,8 @@ function App() {
                     : 'cursor-pointer'
                 }`} 
                 onClick={() => {
-                  // 🚨 THE LOCKOUT: Prevent the toggle and show dynamic narrative!
                   if (isOverheated || (cooldownUntil && cooldownUntil > Date.now())) {
-                    showToast(`⚠️ ${currentTier.narrative}. PLEASE WAIT OR RECHARGE.`);
+                    showToast(`⚠️ ${currentTier?.narrative || 'OVERHEATED'}. PLEASE WAIT OR RECHARGE.`);
                     return;
                   }
                   toggleMining();
@@ -1258,8 +1264,8 @@ function App() {
                 {/* THE 3D NFT IMAGE */}
                 <div className="relative w-80 h-80 z-10 flex items-center justify-center">
                    <img 
-                      src={currentTier.image} 
-                      alt={currentTier.name}
+                      src={currentTier.image || '/scout.png'} 
+                      alt={currentTier.name || 'Rig'}
                       className={`w-full h-full object-contain transition-all duration-1000 ${
                         isOverheated || (cooldownUntil && cooldownUntil > Date.now()) 
                           ? 'brightness-50 sepia-[.8] hue-rotate-[-50deg] animate-pulse drop-shadow-[0_0_25px_rgba(220,38,38,0.8)]' :
@@ -1310,6 +1316,8 @@ function App() {
                  baseRate={BASE_MINING_RATE}
                  referralRate={activeReferrals * REFERRAL_RATE_PER_TICK}
               />
+           </>
+              )}
            </>
         ) : null}
       </div>

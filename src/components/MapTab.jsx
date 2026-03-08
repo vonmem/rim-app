@@ -1,8 +1,32 @@
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Polygon, Polyline, useMap, CircleMarker } from 'react-leaflet';
+import { MapContainer, TileLayer, Polygon, Polyline, useMap, CircleMarker, Marker } from 'react-leaflet';
+import { divIcon } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import * as h3 from 'h3-js';
-import { MapPin, Wifi, Crosshair, AlertTriangle } from 'lucide-react';
+import { MapPin, Wifi, Crosshair, AlertTriangle, Lock } from 'lucide-react';
+
+const CACHE_SPAWN_DISTANCE_M = 250;
+const CACHE_SPAWN_CHANCE = 0.3;
+const DECRYPT_DURATION_MS = 3000;
+const CACHE_REWARDS = [
+  { rarity: 'Common', chance: 0.7, amount: 100, bg: 'bg-emerald-950/90', border: 'border-emerald-500', text: 'text-emerald-400' },
+  { rarity: 'Rare', chance: 0.25, amount: 500, bg: 'bg-purple-950/90', border: 'border-purple-500', text: 'text-purple-400' },
+  { rarity: 'Legendary', chance: 0.05, amount: 2500, bg: 'bg-amber-950/90', border: 'border-amber-400', text: 'text-amber-300' },
+];
+
+function rollCacheReward() {
+  const r = Math.random();
+  if (r < CACHE_REWARDS[0].chance) return CACHE_REWARDS[0];
+  if (r < CACHE_REWARDS[0].chance + CACHE_REWARDS[1].chance) return CACHE_REWARDS[1];
+  return CACHE_REWARDS[2];
+}
+
+const cacheIcon = divIcon({
+  html: `<div style="width:28px;height:28px;background:rgba(168,85,247,0.85);border:2px solid #a855f7;border-radius:6px;box-shadow:0 0 20px rgba(168,85,247,0.7);"></div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  className: 'cache-marker',
+});
 
 const ROUTE_STORAGE_KEY = 'sonar_current_route';
 const MAX_ROUTE_POINTS = 500;
@@ -34,10 +58,61 @@ const MapTab = ({
   activeGPSError,
   activeGPSLocation,
   activeGPSIsSpeeding = false,
+  addTransaction,
 }) => {
   const [hexBoundary, setHexBoundary] = useState([]);
   const [neighborHexes, setNeighborHexes] = useState([]);
   const [liveSector, setLiveSector] = useState(locationData?.h3Index || 'SCANNING...');
+
+  // Loot caches: { id, lat, lng, type }
+  const [activeCaches, setActiveCaches] = useState([]);
+  const lastSpawnAtDistanceRef = useRef(0);
+
+  // Decrypt modal state
+  const [decryptingCache, setDecryptingCache] = useState(null);
+  const [decryptProgress, setDecryptProgress] = useState(0);
+  const [decryptResult, setDecryptResult] = useState(null);
+
+  // Spawn cache every 250m (30% chance) when tracking and not speeding
+  useEffect(() => {
+    if (!isActiveGPSTracking || activeGPSIsSpeeding || !activeGPSLocation) return;
+    const dist = activeGPSDistance || 0;
+    if (dist < lastSpawnAtDistanceRef.current + CACHE_SPAWN_DISTANCE_M) return;
+    lastSpawnAtDistanceRef.current = Math.floor(dist / CACHE_SPAWN_DISTANCE_M) * CACHE_SPAWN_DISTANCE_M;
+    if (Math.random() >= CACHE_SPAWN_CHANCE) return;
+    setActiveCaches((prev) => [
+      ...prev,
+      { id: `cache-${Date.now()}-${Math.random()}`, lat: activeGPSLocation.lat, lng: activeGPSLocation.lng, type: 'encrypted' },
+    ]);
+  }, [activeGPSDistance, isActiveGPSTracking, activeGPSIsSpeeding, activeGPSLocation?.lat, activeGPSLocation?.lng]);
+
+  const handleCacheClick = (cache) => {
+    if (decryptingCache) return;
+    setDecryptingCache(cache);
+    setDecryptResult(null);
+    setDecryptProgress(0);
+    const start = Date.now();
+    const prog = setInterval(() => {
+      const pct = Math.min(100, ((Date.now() - start) / DECRYPT_DURATION_MS) * 100);
+      setDecryptProgress(pct);
+    }, 100);
+    setTimeout(() => {
+      clearInterval(prog);
+      setDecryptProgress(100);
+      const reward = rollCacheReward();
+      setDecryptResult(reward);
+      if (typeof addTransaction === 'function') {
+        addTransaction('CACHE', `+${reward.amount}`, `Decrypted ${reward.rarity} Cache`);
+      }
+      setActiveCaches((prev) => prev.filter((c) => c.id !== cache.id));
+    }, DECRYPT_DURATION_MS);
+  };
+
+  const closeDecryptModal = () => {
+    setDecryptingCache(null);
+    setDecryptProgress(0);
+    setDecryptResult(null);
+  };
 
   // Route trail: [[lat, lng], ...] — init from localStorage, append on each valid position
   const [routeHistory, setRouteHistory] = useState(() => {
@@ -113,6 +188,7 @@ const MapTab = ({
 
   return (
     <div className="absolute inset-0 z-0 bg-black">
+      <style>{`.cache-marker div { animation: pulse 1.5s ease-in-out infinite; }`}</style>
       {activeGPSIsSpeeding && isActiveGPSTracking && (
         <div className="absolute top-4 left-4 right-4 z-[500] rounded-lg border-2 border-red-500 bg-red-900/80 px-4 py-3 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.3)] animate-pulse">
           <p className="text-xs font-black tracking-widest uppercase">⚠️ VEHICLE DETECTED. MAPPING PAUSED.</p>
@@ -177,13 +253,55 @@ const MapTab = ({
           center={center} 
           radius={6} 
           pathOptions={{ 
-            color: isActiveGPSTracking ? '#22c55e' : '#06b6d4', // Green if tracking, Cyan if static
+            color: isActiveGPSTracking ? '#22c55e' : '#06b6d4',
             fillColor: isActiveGPSTracking ? '#22c55e' : '#06b6d4', 
             fillOpacity: 1,
             weight: 2
           }} 
         />
+
+        {/* LOOT CACHES (Encrypted) */}
+        {activeCaches.map((cache) => (
+          <Marker
+            key={cache.id}
+            position={[cache.lat, cache.lng]}
+            icon={cacheIcon}
+            eventHandlers={{ click: () => handleCacheClick(cache) }}
+          />
+        ))}
       </MapContainer>
+
+      {/* DECRYPT CACHE MODAL */}
+      {decryptingCache && (
+        <div className="absolute inset-0 z-[600] flex items-center justify-center bg-black/90 backdrop-blur-sm p-6">
+          <div className={`w-full max-w-sm rounded-xl border-2 p-6 ${decryptResult ? (decryptResult.border + ' ' + decryptResult.bg) : 'bg-gray-900 border-purple-500/50'}`}>
+            {!decryptResult ? (
+              <>
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <Lock size={20} className="text-purple-400 animate-pulse" />
+                  <p className="text-sm font-black tracking-widest uppercase text-purple-400">DECRYPTING CACHE...</p>
+                </div>
+                <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-purple-500 rounded-full transition-all duration-150" style={{ width: `${decryptProgress}%` }} />
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-black tracking-widest uppercase text-center mb-1">DATA SOLD</p>
+                <p className={`text-2xl font-mono font-bold text-center mb-4 ${decryptResult.text}`}>+{decryptResult.amount} RP</p>
+                <p className={`text-[10px] tracking-wider text-center mb-4 ${decryptResult.text} opacity-90`}>Decrypted {decryptResult.rarity} Cache</p>
+                <button
+                  type="button"
+                  onClick={closeDecryptModal}
+                  className="w-full py-3 rounded-lg font-black text-[10px] tracking-widest uppercase border-2 border-current"
+                >
+                  CLOSE
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ULTRA-COMPACT OVERLAY HUD (Pushed closer to tabs) */}
       <div className="absolute bottom-16 left-4 right-4 flex flex-col gap-2 z-[1000]">
