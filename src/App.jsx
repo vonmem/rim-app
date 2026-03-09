@@ -12,6 +12,7 @@ import MissionBoard from './components/MissionBoard';
 import Nomad from './components/Nomad';
 import Uplink from './components/Uplink';
 import Referral from './components/Referral';
+import Onboarding from './components/Onboarding';
 import Inventory from './components/Inventory';
 import Marketplace from './components/Marketplace';
 
@@ -92,6 +93,13 @@ function App() {
 });
   const { user: privyUser, authenticated } = usePrivy();
   const [hasMainnetLicense, setHasMainnetLicense] = useState(false);
+  const [ftueCompleted, setFtueCompleted] = useState(() => {
+    try {
+      return !!localStorage.getItem('sonar_ftue_completed');
+    } catch {
+      return false;
+    }
+  });
 
   // Ledger: real transaction history from localStorage (key: sonar_ledger)
   const [transactions, setTransactions] = useState(() => {
@@ -1009,7 +1017,10 @@ function App() {
 
   return (
     <div className="flex flex-col min-h-screen bg-black text-white font-mono overflow-hidden select-none relative">
-      
+      {!ftueCompleted && (
+        <Onboarding onComplete={() => setFtueCompleted(true)} />
+      )}
+
       {/* HEADER WITH SIGNAL MAP INDICATOR */}
       <div className="p-4 border-b border-gray-900 bg-black/80 backdrop-blur-xl z-50">
         <div className="flex justify-between items-start">
